@@ -52,6 +52,10 @@ class DamascusSimulator:
         self.current_pattern_type = None  # Track which pattern is active
         self.custom_layer_stack = None  # Store custom layer stack for W/C patterns
         
+        # Debug mode
+        self.debug_mode = tk.BooleanVar(value=False)
+        self.debug_log = []
+        
         # Default save directory
         self.default_save_dir = os.path.expanduser('~/Documents/DPS')
         self.ensure_save_directory()
@@ -65,6 +69,18 @@ class DamascusSimulator:
             os.makedirs(self.default_save_dir, exist_ok=True)
         except Exception as e:
             print(f"[WARNING] Could not create default save directory: {e}")
+    
+    def debug_print(self, message):
+        """Print debug message and log it if debug mode is enabled"""
+        if self.debug_mode.get():
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            log_entry = f"[{timestamp}] {message}"
+            print(log_entry)
+            self.debug_log.append(log_entry)
+            # Keep only last 100 entries
+            if len(self.debug_log) > 100:
+                self.debug_log = self.debug_log[-100:]
     
     def setup_style(self):
         """Configure modern ttk style"""
@@ -128,6 +144,8 @@ class DamascusSimulator:
         right_menu = ttk.Frame(menubar)
         right_menu.pack(side=tk.RIGHT, fill=tk.X)
         
+        ttk.Checkbutton(right_menu, text="Debug", variable=self.debug_mode).pack(side=tk.LEFT, padx=2)
+        ttk.Button(right_menu, text="Report Issue", command=self.report_issue).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Reset Options", command=self.reset_options_only).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Reset All", command=self.reset_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Check for Updates", command=self.check_for_updates).pack(side=tk.LEFT, padx=2)
@@ -336,6 +354,7 @@ class DamascusSimulator:
     
     def load_pattern(self):
         """Load a pattern image from file"""
+        self.debug_print("load_pattern() called")
         filename = filedialog.askopenfilename(
             title="Select Pattern Image",
             initialdir=self.default_save_dir,
@@ -355,6 +374,7 @@ class DamascusSimulator:
     
     def load_default_pattern(self):
         """Load a default pattern"""
+        self.debug_print("load_default_pattern() called")
         self.create_simple_layers()
     
     def mm_to_pixels(self, mm):
@@ -700,6 +720,84 @@ class DamascusSimulator:
             import traceback
             traceback.print_exc()
     
+    def report_issue(self):
+        """Generate and open GitHub issue with debug information"""
+        import platform
+        import sys
+        import urllib.parse
+        import webbrowser
+        
+        # Collect system info
+        system_info = f"""**System Information:**
+- OS: {platform.system()} {platform.release()}
+- Python: {sys.version.split()[0]}
+- DPS Version: 1.2
+
+"""
+        
+        # Add debug log if available
+        debug_info = ""
+        if self.debug_log:
+            debug_info = f"""**Debug Log:**
+```
+{"".join(self.debug_log[-20:])}
+```
+
+"""
+        else:
+            debug_info = "**Debug Log:** No debug information available (Debug mode was off)\n\n"
+        
+        # Create issue template
+        issue_title = "Bug Report: "
+        issue_body = f"""## Description
+[Please describe the issue you're experiencing]
+
+## Steps to Reproduce
+1. 
+2. 
+3. 
+
+## Expected Behavior
+[What you expected to happen]
+
+## Actual Behavior
+[What actually happened]
+
+{system_info}{debug_info}---
+*This issue was generated using the Report Issue feature in DPS v1.2*
+"""
+        
+        # URL encode the parameters
+        github_url = "https://github.com/gboyce1967/damascus-pattern-simulator/issues/new"
+        params = {
+            "title": issue_title,
+            "body": issue_body
+        }
+        url = f"{github_url}?{urllib.parse.urlencode(params)}"
+        
+        try:
+            webbrowser.open(url)
+            if self.debug_log:
+                messagebox.showinfo(
+                    "Report Issue",
+                    "Opening GitHub in your browser...\n\n"
+                    "Debug information has been included.\n"
+                    "Please describe the issue you're experiencing."
+                )
+            else:
+                messagebox.showinfo(
+                    "Report Issue",
+                    "Opening GitHub in your browser...\n\n"
+                    "Tip: Enable Debug mode and reproduce the issue\n"
+                    "to include detailed debug information."
+                )
+        except Exception as e:
+            messagebox.showerror(
+                "Error",
+                f"Could not open browser: {e}\n\n"
+                f"Please visit:\n{github_url}"
+            )
+    
     def check_for_updates(self):
         """Check for updates via the update script"""
         import subprocess
@@ -929,6 +1027,7 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
     
     def save_pattern(self):
         """Save the current pattern to file"""
+        self.debug_print("save_pattern() called")
         if self.display_image is None:
             messagebox.showwarning("Warning", "No pattern to save!")
             return
@@ -966,6 +1065,7 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
     
     def save_pattern_as_layer(self):
         """Save current pattern as a layer image file for use in custom layer builder"""
+        self.debug_print("save_pattern_as_layer() called")
         if self.pattern_array is None:
             messagebox.showwarning("Warning", "No pattern to save!")
             return
@@ -996,6 +1096,7 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
     
     def print_pattern(self):
         """Print the current pattern using native print dialog"""
+        self.debug_print("print_pattern() called")
         if self.display_image is None:
             messagebox.showwarning("Warning", "No pattern to print!")
             return
