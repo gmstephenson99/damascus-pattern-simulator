@@ -78,9 +78,16 @@ This application allows bladesmiths, metalworkers, and enthusiasts to visualize 
 
 ### Download from GitHub
 
-First, download the latest release from GitHub:
+**Recommended: Clone with Git (enables automatic updates)**
+```bash
+# Clone the repository
+git clone https://github.com/gboyce1967/damascus-pattern-simulator.git
 
-**Option 1: Download ZIP file**
+# Navigate to the directory
+cd damascus-pattern-simulator
+```
+
+**Alternative: Download ZIP file (manual updates only)**
 ```bash
 # Download the latest release
 wget https://github.com/gboyce1967/damascus-pattern-simulator/archive/refs/heads/main.zip
@@ -92,14 +99,7 @@ unzip main.zip
 cd damascus-pattern-simulator-main
 ```
 
-**Option 2: Clone with Git**
-```bash
-# Clone the repository
-git clone https://github.com/gboyce1967/damascus-pattern-simulator.git
-
-# Navigate to the directory
-cd damascus-pattern-simulator
-```
+**Note**: The git clone method is recommended as it enables the automatic update feature.
 
 ### Quick Install (Recommended)
 
@@ -150,11 +150,12 @@ python3 damascus_simulator.py
 
 ## Updating
 
-If you installed via git clone, you can easily update to the latest version:
+### Automatic Updates (git installations only)
+
+If you installed via `git clone`, you can easily update:
 
 ```bash
 cd damascus-pattern-simulator
-chmod +x update-DPS.sh
 ./update-DPS.sh
 ```
 
@@ -164,7 +165,16 @@ The update script will:
 - Update to the latest version after confirmation
 - Preserve your settings and saved patterns
 
-**Note**: If you downloaded the ZIP file, you'll need to download the latest ZIP and reinstall.
+You can also click **Check for Updates** in the application menu.
+
+### Manual Updates (ZIP installations)
+
+If you downloaded the ZIP file:
+1. Download the latest ZIP from GitHub
+2. Extract and replace your old installation
+3. Run `./install-DPS.sh` again
+
+**Tip**: Switch to git clone for easier updates!
 
 ## Quick Start
 

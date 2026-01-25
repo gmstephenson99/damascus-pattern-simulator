@@ -30,7 +30,20 @@ echo
 # Check if we're in a git repository
 if [ ! -d ".git" ]; then
     print_error "This directory is not a git repository."
-    echo "Please run this script from the damascus-pattern-simulator directory."
+    echo
+    print_warning "You installed from a ZIP file (not git clone)."
+    echo
+    echo "Automatic updates are only available for git installations."
+    echo
+    echo "To enable automatic updates:"
+    echo "  1. Remove current installation"
+    echo "  2. Install via git clone:"
+    echo "     git clone https://github.com/gboyce1967/damascus-pattern-simulator.git"
+    echo "  3. Run: cd damascus-pattern-simulator && ./install-DPS.sh"
+    echo
+    echo "Or manually update:"
+    echo "  Download: https://github.com/gboyce1967/damascus-pattern-simulator/archive/refs/heads/main.zip"
+    echo
     exit 1
 fi
 
