@@ -87,9 +87,10 @@ main() {
 
     print_status "Python packages installed via system package manager"
 
-    print_status "Making damascus_simulator.py executable..."
+    print_status "Making scripts executable..."
     chmod +x damascus_simulator.py
-
+    chmod +x update-DPS.sh 2>/dev/null || true
+    
     print_status "Creating desktop entry..."
     DESKTOP_FILE="$HOME/.local/share/applications/damascus-simulator.desktop"
     mkdir -p "$HOME/.local/share/applications"

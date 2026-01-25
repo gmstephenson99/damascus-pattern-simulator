@@ -130,6 +130,7 @@ class DamascusSimulator:
         
         ttk.Button(right_menu, text="Reset Options", command=self.reset_options_only).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Reset All", command=self.reset_all).pack(side=tk.LEFT, padx=2)
+        ttk.Button(right_menu, text="Check for Updates", command=self.check_for_updates).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="About", command=self.show_about).pack(side=tk.LEFT, padx=2)
         
         # Content area
@@ -698,6 +699,50 @@ class DamascusSimulator:
             print(f"[ERROR] Reset All failed: {e}")
             import traceback
             traceback.print_exc()
+    
+    def check_for_updates(self):
+        """Check for updates via the update script"""
+        import subprocess
+        import sys
+        
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        update_script = os.path.join(script_dir, 'update-DPS.sh')
+        
+        if not os.path.exists(update_script):
+            messagebox.showinfo(
+                "Update Check",
+                "Update script not found.\n\n"
+                "This feature requires installation via git clone.\n"
+                "Visit: github.com/gboyce1967/damascus-pattern-simulator"
+            )
+            return
+        
+        try:
+            # Run update script in a terminal
+            terminal_commands = [
+                ['x-terminal-emulator', '-e', f'bash -c "{update_script}; echo; read -p \"Press Enter to close...\""'],
+                ['gnome-terminal', '--', 'bash', '-c', f'{update_script}; echo; read -p "Press Enter to close..."'],
+                ['xterm', '-e', f'bash -c "{update_script}; echo; read -p \"Press Enter to close...\""'],
+                ['konsole', '-e', f'bash -c "{update_script}; echo; read -p \"Press Enter to close...\""']
+            ]
+            
+            success = False
+            for cmd in terminal_commands:
+                try:
+                    subprocess.Popen(cmd)
+                    success = True
+                    break
+                except FileNotFoundError:
+                    continue
+            
+            if not success:
+                messagebox.showinfo(
+                    "Update Check",
+                    "Could not open terminal.\n\n"
+                    f"Please run manually:\n{update_script}"
+                )
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to check for updates: {e}")
     
     def show_about(self):
         """Show about dialog"""

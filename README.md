@@ -148,6 +148,24 @@ Or:
 python3 damascus_simulator.py
 ```
 
+## Updating
+
+If you installed via git clone, you can easily update to the latest version:
+
+```bash
+cd damascus-pattern-simulator
+chmod +x update-DPS.sh
+./update-DPS.sh
+```
+
+The update script will:
+- Check for available updates
+- Show you what's new
+- Update to the latest version after confirmation
+- Preserve your settings and saved patterns
+
+**Note**: If you downloaded the ZIP file, you'll need to download the latest ZIP and reinstall.
+
 ## Quick Start
 
 1. Run the application
