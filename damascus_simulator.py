@@ -374,12 +374,20 @@ class DamascusSimulator:
         )
         
         if filename:
+            self.debug_print(f"File selected: {filename}")
             try:
+                self.debug_print("Opening image file...")
                 self.original_image = Image.open(filename).convert('RGB')
+                self.debug_print("Converting to array...")
                 self.pattern_array = np.array(self.original_image)
+                self.debug_print(f"Image loaded: {self.pattern_array.shape}")
                 self.update_pattern()
+                self.debug_print("Pattern display updated")
             except Exception as e:
+                self.debug_print(f"ERROR loading image: {e}")
                 messagebox.showerror("Error", f"Failed to load image: {e}")
+        else:
+            self.debug_print("No file selected (dialog canceled)")
     
     def load_default_pattern(self):
         """Load a default pattern"""
