@@ -1117,9 +1117,23 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         
         if filename:
             try:
-                # Save the BASE pattern without transformations
-                # This is what will be used as a repeating layer
-                img = Image.fromarray(self.pattern_array)
+                # Save the TRANSFORMED pattern (what user sees on screen)
+                result = self.pattern_array.copy()
+                
+                # Apply rotation first
+                rotation = self.rotation_angle.get()
+                if rotation != 0:
+                    k = rotation // 90
+                    result = np.rot90(result, k=k)
+                
+                # Apply mosaic
+                result = self.apply_mosaic(result)
+                
+                # Apply twist and grind
+                result = self.apply_twist(result)
+                result = self.apply_grind(result)
+                
+                img = Image.fromarray(result)
                 img.save(filename)
                 
                 messagebox.showinfo("Success", 
