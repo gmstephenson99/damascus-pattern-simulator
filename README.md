@@ -19,19 +19,22 @@ This application allows bladesmiths, metalworkers, and enthusiasts to visualize 
 - **C Pattern**: Curved/arced layers simulating bent billets
 - **Custom Layers**: Build your own complex layer stacks with the layer builder
 
-### Custom Layer Builder (Enhanced in v1.2)
+### Custom Layer Builder (Enhanced in v1.3)
 - Add individual layers with specific colors (white/black) and thicknesses
 - **Load pattern images as layers**: Use saved patterns (like C or W patterns) as custom layers
 - **Dynamic canvas sizing**: Automatically adjusts to accommodate wide mosaic patterns
 - **Persistent layer stacks**: Reopen builder with previous settings for easy editing
-- Edit existing layers by double-clicking
+- Edit existing layers by double-clicking or pressing Enter to save
+- **Quick save with Enter**: Change thickness and press Enter (no need to click Save)
 - Quick buttons to add 5, 10, or 20 alternating layers
 - Reorder layers (move up/down)
 - Remove layers or clear all
 - **Apply to Patterns**: Use your custom layers with W and C patterns
 
 ### Real-Time Transformations
-- **Twist**: Simulate twisting the billet (0-10 scale)
+- **Twist**: Simulate twisting a round bar viewed from the end (0-10 scale)
+  - Creates radial/spiral patterns rotating around center
+  - Layers further from center show more twist
 - **Grind Depth**: Visualize pattern at different grinding depths (0-100%)
   - Grinds perpendicular to layers (from the side, not the end)
   - Simulates realistic knifemaking bevels
@@ -61,7 +64,8 @@ This application allows bladesmiths, metalworkers, and enthusiasts to visualize 
 - **Export formats**: PNG, JPEG, PDF (300 DPI)
 - **Native print dialog**: Standard Linux print interface with full options
 - **Default save directory**: All files save to ~/Documents/DPS by default
-- **Save as Layer**: Export base patterns for use in Custom Layer Builder
+- **Save as Layer**: Export transformed patterns (with twist/grind) for use in Custom Layer Builder
+- **Customizable canvas background**: Choose default logo, custom image, or solid color
 
 ## Requirements
 
@@ -216,7 +220,7 @@ The code is well-commented and organized into three main classes:
 - `create_custom_layers()` - User-defined layer stacks
 
 **Transformations:**
-- `apply_twist()` - Radial twist effect
+- `apply_twist()` - Radial twist effect for end-grain view of round bar
 - `apply_grind()` - Perpendicular grinding with bevel angle (0-45°)
 - `apply_mosaic()` - Tiled pattern arrangement (quick 1×1 to 3×3)
 
@@ -275,6 +279,14 @@ This will remove:
 
 ## Version History
 
+### Version 1.3 (January 2026)
+- **Fixed twist transformation**: Now shows proper radial spiral for end-grain view
+- **Enhanced layer editing**: Press Enter to save changes (no need to click Save button)
+- **Canvas background customization**: Choose logo, custom image, or solid color
+- **Improved Save as Layer**: Now saves transformed patterns with twist/grind applied
+- **Better display scaling**: Improved zoom for wide/thin patterns
+- **UI improvements**: Grind angle moved before grind depth
+
 ### Version 1.2 (January 2026)
 - **Pattern images as layers**: Load saved patterns into Custom Layer Builder
 - **Dynamic canvas sizing**: Handles wide mosaic patterns (e.g., 2000×400)
@@ -297,7 +309,7 @@ This will remove:
 
 - **Inspired by**: Thor II by Christian Schnura
 - **Author**: Gary Boyce
-- **Version**: 1.2
+- **Version**: 1.3
 - **Date**: January 2026
 
 ## License

@@ -54,7 +54,13 @@ class DamascusSimulator:
         
         # Debug mode
         self.debug_mode = tk.BooleanVar(value=False)
+        self.debug_mode.trace_add('write', self.on_debug_mode_change)
         self.debug_log = []
+        
+        # Canvas background
+        self.canvas_bg_image = None
+        self.canvas_bg_tile = None
+        self.load_default_canvas_background()
         
         # Default save directory
         self.default_save_dir = os.path.expanduser('~/Documents/DPS')
@@ -62,6 +68,7 @@ class DamascusSimulator:
         
         self.setup_ui()
         self.load_default_pattern()
+        self.update_canvas_background()
     
     def ensure_save_directory(self):
         """Ensure the default save directory exists"""
@@ -69,6 +76,114 @@ class DamascusSimulator:
             os.makedirs(self.default_save_dir, exist_ok=True)
         except Exception as e:
             print(f"[WARNING] Could not create default save directory: {e}")
+    
+    def on_debug_mode_change(self, *args):
+        """Called when debug mode checkbox is toggled"""
+        if self.debug_mode.get():
+            self.debug_print("Debug mode enabled")
+        else:
+            print("[INFO] Debug mode disabled")
+    
+    def load_default_canvas_background(self):
+        """Load the default tiled canvas background"""
+        # Load from project directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        bg_path = os.path.join(script_dir, 'canvas_background.png')
+        
+        try:
+            if os.path.exists(bg_path):
+                self.canvas_bg_image = Image.open(bg_path).convert('RGB')
+                print(f"[INFO] Loaded canvas background: {bg_path}")
+            else:
+                print(f"[WARNING] Canvas background not found: {bg_path}")
+        except Exception as e:
+            print(f"[WARNING] Could not load canvas background: {e}")
+    
+    def update_canvas_background(self):
+        """Update the canvas background with tiled logo"""
+        if self.canvas_bg_image:
+            try:
+                # Create tiled background for full canvas
+                bg = Image.new('RGB', (self.canvas_width, self.canvas_height), self.colors['canvas_bg'])
+                bg_width, bg_height = self.canvas_bg_image.size
+                
+                # Tile the logo across the canvas
+                for y in range(0, self.canvas_height, bg_height):
+                    for x in range(0, self.canvas_width, bg_width):
+                        bg.paste(self.canvas_bg_image, (x, y))
+                
+                # Convert to PhotoImage and set as canvas background
+                self.canvas_bg_tile = ImageTk.PhotoImage(bg)
+                self.canvas.create_image(0, 0, anchor=tk.NW, image=self.canvas_bg_tile, tags="bg")
+                self.canvas.tag_lower("bg")
+            except Exception as e:
+                print(f"[WARNING] Could not set canvas background: {e}")
+    
+    def change_canvas_background(self):
+        """Allow user to change the canvas background"""
+        # Create a dialog with options
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Canvas Background")
+        dialog.geometry("400x300")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        main_frame = ttk.Frame(dialog, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(main_frame, text="Choose Canvas Background:", 
+                 font=('Arial', 12, 'bold')).pack(pady=(0, 20))
+        
+        def use_default():
+            self.load_default_canvas_background()
+            self.update_canvas_background()
+            self.update_pattern()
+            dialog.destroy()
+            messagebox.showinfo("Success", "Default background restored!")
+        
+        def use_image():
+            dialog.destroy()
+            filename = filedialog.askopenfilename(
+                title="Select Canvas Background Image",
+                filetypes=[
+                    ("Image files", "*.png *.jpg *.jpeg"),
+                    ("All files", "*.*")
+                ]
+            )
+            if filename:
+                try:
+                    self.canvas_bg_image = Image.open(filename).convert('RGB')
+                    self.update_canvas_background()
+                    self.update_pattern()
+                    messagebox.showinfo("Success", "Canvas background updated!")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to load image: {e}")
+        
+        def use_color():
+            from tkinter import colorchooser
+            dialog.destroy()
+            
+            color = colorchooser.askcolor(title="Choose Background Color")
+            if color[1]:  # color[1] is the hex string
+                try:
+                    # Create solid color image
+                    bg = Image.new('RGB', (self.canvas_width, self.canvas_height), color[0])
+                    self.canvas_bg_image = bg
+                    self.update_canvas_background()
+                    self.update_pattern()
+                    messagebox.showinfo("Success", "Canvas background color updated!")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to set color: {e}")
+        
+        # Buttons
+        ttk.Button(main_frame, text="Default (Gray Works Logo)", 
+                  command=use_default).pack(fill=tk.X, pady=5)
+        ttk.Button(main_frame, text="Custom Image...", 
+                  command=use_image).pack(fill=tk.X, pady=5)
+        ttk.Button(main_frame, text="Solid Color...", 
+                  command=use_color).pack(fill=tk.X, pady=5)
+        ttk.Button(main_frame, text="Cancel", 
+                  command=dialog.destroy).pack(fill=tk.X, pady=15)
     
     def debug_print(self, message):
         """Print debug message and log it if debug mode is enabled"""
@@ -154,6 +269,7 @@ class DamascusSimulator:
         right_menu.pack(side=tk.RIGHT, fill=tk.X)
         
         ttk.Checkbutton(right_menu, text="Debug", variable=self.debug_mode).pack(side=tk.LEFT, padx=2)
+        ttk.Button(right_menu, text="Canvas BG", command=self.change_canvas_background).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Report Issue", command=self.report_issue).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Reset Options", command=self.reset_options_only).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="Reset All", command=self.reset_all).pack(side=tk.LEFT, padx=2)
@@ -226,25 +342,10 @@ class DamascusSimulator:
         twist_spinbox.bind('<Return>', lambda e: self.update_pattern())
         twist_spinbox.bind('<FocusOut>', lambda e: self.update_pattern())
         
-        # Grind depth
-        ttk.Label(transform_frame, text="Grind Depth (%):").pack(anchor=tk.W, pady=(0,3))
-        grind_frame = ttk.Frame(transform_frame)
-        grind_frame.pack(fill=tk.X, pady=(0, 12))
-        grind_scale = ttk.Scale(grind_frame, from_=0, to=100, 
-                               variable=self.grind_depth, 
-                               command=self.update_pattern)
-        grind_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        grind_spinbox = ttk.Spinbox(grind_frame, from_=0, to=100, increment=1,
-                                   textvariable=self.grind_depth, width=8,
-                                   command=self.update_pattern)
-        grind_spinbox.pack(side=tk.LEFT, padx=(8,0))
-        grind_spinbox.bind('<Return>', lambda e: self.update_pattern())
-        grind_spinbox.bind('<FocusOut>', lambda e: self.update_pattern())
-        
-        # Grind angle
+        # Grind angle (now first)
         ttk.Label(transform_frame, text="Grind Angle (degrees):").pack(anchor=tk.W, pady=(0,3))
         angle_frame = ttk.Frame(transform_frame)
-        angle_frame.pack(fill=tk.X, pady=(0, 0))
+        angle_frame.pack(fill=tk.X, pady=(0, 12))
         angle_scale = ttk.Scale(angle_frame, from_=0, to=45, 
                                variable=self.grind_angle, 
                                command=self.update_pattern)
@@ -255,6 +356,21 @@ class DamascusSimulator:
         angle_spinbox.pack(side=tk.LEFT, padx=(8,0))
         angle_spinbox.bind('<Return>', lambda e: self.update_pattern())
         angle_spinbox.bind('<FocusOut>', lambda e: self.update_pattern())
+        
+        # Grind depth (now second)
+        ttk.Label(transform_frame, text="Grind Depth (%):").pack(anchor=tk.W, pady=(0,3))
+        grind_frame = ttk.Frame(transform_frame)
+        grind_frame.pack(fill=tk.X, pady=(0, 0))
+        grind_scale = ttk.Scale(grind_frame, from_=0, to=100, 
+                               variable=self.grind_depth, 
+                               command=self.update_pattern)
+        grind_scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        grind_spinbox = ttk.Spinbox(grind_frame, from_=0, to=100, increment=1,
+                                   textvariable=self.grind_depth, width=8,
+                                   command=self.update_pattern)
+        grind_spinbox.pack(side=tk.LEFT, padx=(8,0))
+        grind_spinbox.bind('<Return>', lambda e: self.update_pattern())
+        grind_spinbox.bind('<FocusOut>', lambda e: self.update_pattern())
         
         # Layer thickness controls
         layer_frame = ttk.LabelFrame(right_frame, text="Layer Thickness", padding=15)
@@ -626,31 +742,46 @@ class DamascusSimulator:
                 print(f"[DEBUG]   pattern_image shape: {layer['pattern_image'].shape}")
         
         # First pass: determine required canvas size
-        max_width = 400  # Minimum width
+        max_width = 0
         total_height = 0
         
-        for layer in layer_data:
+        for i, layer in enumerate(layer_data):
+            print(f"[DEBUG] Analyzing layer {i}: color={layer.get('color', 'UNKNOWN')}")
+            
             if layer['color'] == 'pattern' and 'pattern_image' in layer:
-                pat_height, pat_width = layer['pattern_image'].shape[:2]
-                print(f"[DEBUG] Found pattern layer: {pat_height}x{pat_width}")
-                
-                # Calculate scaled dimensions based on thickness
-                target_height = max(1, self.mm_to_pixels(layer['thickness']))
-                scale_factor = target_height / pat_height
-                scaled_width = int(pat_width * scale_factor)
-                
-                max_width = max(max_width, scaled_width)
-                total_height += target_height
-                print(f"[DEBUG] Pattern layer will be scaled to {target_height}x{scaled_width}")
-                print(f"[DEBUG] Updated max_width to {max_width}, total_height to {total_height}")
+                pattern_img = layer['pattern_image']
+                if pattern_img is not None and hasattr(pattern_img, 'shape'):
+                    pat_height, pat_width = pattern_img.shape[:2]
+                    print(f"[DEBUG] Found pattern layer: {pat_height}x{pat_width}")
+                    
+                    # Calculate scaled height based on thickness (width stays original)
+                    target_height = max(1, self.mm_to_pixels(layer['thickness']))
+                    
+                    max_width = max(max_width, pat_width)
+                    total_height += target_height
+                    print(f"[DEBUG] Pattern layer will be scaled to {target_height}x{pat_width}")
+                    print(f"[DEBUG] Updated max_width to {max_width}, total_height to {total_height}")
+                else:
+                    print(f"[ERROR] Pattern layer {i} has invalid or missing pattern_image!")
             else:
                 thickness = max(1, self.mm_to_pixels(layer['thickness']))
                 total_height += thickness
                 print(f"[DEBUG] Added {thickness}px for {layer['color']} layer, total_height now {total_height}")
         
-        # Create canvas exactly sized for all layers (no minimum size)
-        canvas_width = max(max_width, 1)  # At least 1 pixel
-        canvas_height = max(total_height, 1)  # At least 1 pixel
+        # Validate and set dimensions
+        if total_height == 0:
+            print(f"[ERROR] No height calculated from layers! Check layer thickness.")
+            messagebox.showerror("Error", "Failed to calculate pattern height. Check layer thickness settings.")
+            return
+        
+        # If no pattern images, use default width (for white/black only stacks)
+        if max_width == 0:
+            canvas_width = 400
+            print(f"[INFO] No pattern images found, using default width: {canvas_width}px")
+        else:
+            canvas_width = max_width
+        
+        canvas_height = total_height
         print(f"[DEBUG] Canvas size: {canvas_width}x{canvas_height}")
         
         img = Image.new('RGB', (canvas_width, canvas_height))
@@ -676,19 +807,18 @@ class DamascusSimulator:
                     pat_height, pat_width = pattern_img.shape[:2]
                     print(f"[DEBUG] Original pattern size: {pat_height}x{pat_width}")
                     
-                    # Scale pattern to match specified thickness in mm
+                    # Scale pattern HEIGHT to match specified thickness in mm
+                    # Keep original WIDTH to preserve horizontal detail
                     target_height = max(1, self.mm_to_pixels(layer['thickness']))
                     print(f"[DEBUG] Target height for {layer['thickness']}mm: {target_height}px")
                     
-                    # Resize pattern to target height while maintaining aspect ratio
+                    # Resize pattern height only, keep original width
                     if pat_height != target_height:
-                        scale_factor = target_height / pat_height
-                        new_width = int(pat_width * scale_factor)
-                        print(f"[DEBUG] Scaling pattern to: {target_height}x{new_width}")
+                        print(f"[DEBUG] Scaling pattern height: {pat_height} -> {target_height}, keeping width: {pat_width}")
                         
-                        # Resize using PIL
+                        # Resize using PIL - height only, preserve width
                         pattern_pil = Image.fromarray(pattern_img)
-                        pattern_pil = pattern_pil.resize((new_width, target_height), Image.Resampling.LANCZOS)
+                        pattern_pil = pattern_pil.resize((pat_width, target_height), Image.Resampling.LANCZOS)
                         pattern_img = np.array(pattern_pil)
                         pat_height, pat_width = pattern_img.shape[:2]
                     
@@ -885,15 +1015,15 @@ class DamascusSimulator:
     def show_about(self):
         """Show about dialog"""
         about_text = """Damascus Pattern Simulator
-Version 1.2
+Version 1.3
 |
 Simulate Damascus steel patterns with:
-• Twist transformations
+• Radial twist transformations
 • Grind depth and angle control
 • Custom layer stacks with pattern images
 • Mosaic pattern generation
 • W and C pattern presets
-• Dynamic canvas sizing
+• Customizable canvas backgrounds
 |
 Created for Linux
 Inspired by Thor II by Christian Schnura
@@ -902,7 +1032,11 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         messagebox.showinfo("About", about_text)
     
     def apply_twist(self, pattern):
-        """Apply twist transformation to the pattern"""
+        """Apply twist transformation simulating a twisted round bar viewed from the end.
+        
+        When viewing the end grain of a twisted round bar, the layers create a
+        radial/spiral pattern rotating around the center point.
+        """
         twist = self.twist_amount.get()
         if twist == 0:
             return pattern
@@ -910,29 +1044,41 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         height, width = pattern.shape[:2]
         result = np.zeros_like(pattern)
         
-        center_x = width / 2
+        # Center point
         center_y = height / 2
+        center_x = width / 2
+        
+        # Convert twist amount to radians per unit radius
+        twist_rate = twist * 0.05  # Adjust this factor for desired effect
         
         for y in range(height):
             for x in range(width):
                 # Calculate distance from center
-                dx = x - center_x
                 dy = y - center_y
-                distance = math.sqrt(dx*dx + dy*dy)
+                dx = x - center_x
+                radius = math.sqrt(dx*dx + dy*dy)
                 
-                # Calculate twist angle based on distance
-                angle = (distance / width) * twist * math.pi
+                if radius < 0.1:  # Avoid division by zero at center
+                    result[y, x] = pattern[y, x]
+                    continue
                 
-                # Apply rotation
-                cos_a = math.cos(angle)
-                sin_a = math.sin(angle)
+                # Calculate angle from center
+                angle = math.atan2(dy, dx)
                 
-                new_x = int(center_x + dx * cos_a - dy * sin_a)
-                new_y = int(center_y + dx * sin_a + dy * cos_a)
+                # Apply twist: rotate the sampling angle based on radius
+                # Layers further from center are twisted more
+                twist_angle = radius * twist_rate
+                source_angle = angle - twist_angle
                 
-                # Boundary check
-                if 0 <= new_x < width and 0 <= new_y < height:
-                    result[y, x] = pattern[new_y, new_x]
+                # Convert back to coordinates
+                source_x = int(center_x + radius * math.cos(source_angle))
+                source_y = int(center_y + radius * math.sin(source_angle))
+                
+                # Clamp to valid coordinates
+                source_x = max(0, min(width - 1, source_x))
+                source_y = max(0, min(height - 1, source_y))
+                
+                result[y, x] = pattern[source_y, source_x]
         
         return result
     
@@ -1040,13 +1186,16 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
             
             # Apply other transformations
             twist_val = self.twist_amount.get()
+            self.debug_print(f"Twist value retrieved: {twist_val}")
             if twist_val > 0:
                 self.debug_print(f"Applying twist: {twist_val}")
             result = self.apply_twist(result)
             
             grind_val = self.grind_depth.get()
+            grind_angle_val = self.grind_angle.get()
+            self.debug_print(f"Grind values retrieved: depth={grind_val}, angle={grind_angle_val}")
             if grind_val > 0:
-                self.debug_print(f"Applying grind: {grind_val}% at {self.grind_angle.get()}°")
+                self.debug_print(f"Applying grind: {grind_val}% at {grind_angle_val}°")
             result = self.apply_grind(result)
             
             # Convert to PIL Image
@@ -1055,12 +1204,25 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
             # Get actual pattern dimensions
             pattern_width, pattern_height = img.size
             self.debug_print(f"Final pattern size: {pattern_width}x{pattern_height}")
-            print(f"[DEBUG] Pattern size: {pattern_width}x{pattern_height}")
             
-            # Calculate scale to fit in canvas while maintaining aspect ratio
+            # Calculate scale to fit in canvas
             scale_w = (self.canvas_width - 20) / pattern_width
             scale_h = (self.canvas_height - 20) / pattern_height
-            scale = min(scale_w, scale_h, 1.0)  # Don't scale up, only down
+            
+            # For very wide/thin patterns (aspect ratio > 4:1), scale differently
+            # to show more detail
+            aspect_ratio = pattern_width / max(pattern_height, 1)
+            
+            if aspect_ratio > 4.0:
+                # Wide/thin pattern - scale up to show more vertical detail
+                # Use height-based scaling, allowing significant zoom
+                target_display_height = min(600, self.canvas_height - 20)
+                scale = target_display_height / pattern_height
+                # Cap maximum zoom to avoid excessive pixelation
+                scale = min(scale, 20.0)
+            else:
+                # Normal pattern - scale to fit both dimensions
+                scale = min(scale_w, scale_h, 1.0)  # Don't scale up, only down
             
             if scale < 1.0:
                 # Scale down to fit
@@ -1068,14 +1230,37 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
                 new_height = int(pattern_height * scale)
                 img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
+            # Composite pattern over tiled background if available
+            if self.canvas_bg_image:
+                # Create tiled background
+                final_width, final_height = img.size
+                bg = Image.new('RGB', (final_width, final_height), self.colors['canvas_bg'])
+                
+                # Tile the background image
+                bg_width, bg_height = self.canvas_bg_image.size
+                for y_offset in range(0, final_height, bg_height):
+                    for x_offset in range(0, final_width, bg_width):
+                        bg.paste(self.canvas_bg_image, (x_offset, y_offset))
+                
+                # Convert pattern to RGBA for transparency
+                if img.mode != 'RGBA':
+                    img = img.convert('RGBA')
+                
+                # Composite pattern over background
+                bg.paste(img, (0, 0), img)
+                img = bg
+            
             # Convert to PhotoImage
             self.display_image = ImageTk.PhotoImage(img)
             
             # Display on canvas centered
-            self.canvas.delete("all")
+            # Delete only the pattern, not the background
+            self.canvas.delete("pattern")
             x = (self.canvas_width - img.width) // 2
             y = (self.canvas_height - img.height) // 2
-            self.canvas.create_image(x, y, anchor=tk.NW, image=self.display_image)
+            self.canvas.create_image(x, y, anchor=tk.NW, image=self.display_image, tags="pattern")
+            # Keep pattern above background
+            self.canvas.tag_raise("pattern")
             self.debug_print(f"Canvas updated at position ({x}, {y})")
             
         except Exception as e:
@@ -1473,14 +1658,27 @@ class CustomLayerDialog:
                                        width=15)
         thickness_spinbox.pack(anchor=tk.W, pady=(0, 15))
         
+        # Auto-select all text in the spinbox for easy editing
+        thickness_spinbox.selection_range(0, tk.END)
+        thickness_spinbox.focus_set()
+        
         # Buttons
-        def save_changes():
+        def save_changes(event=None):
             new_thickness = thickness_var.get()
             if new_thickness <= 0:
                 messagebox.showwarning("Invalid Thickness", "Thickness must be greater than 0")
                 return
             
-            self.layers[idx] = {'color': color_var.get(), 'thickness': new_thickness}
+            # Preserve pattern_image and pattern_name if this is a pattern layer
+            old_layer = self.layers[idx]
+            new_layer = {'color': color_var.get(), 'thickness': new_thickness}
+            
+            if 'pattern_image' in old_layer:
+                new_layer['pattern_image'] = old_layer['pattern_image']
+            if 'pattern_name' in old_layer:
+                new_layer['pattern_name'] = old_layer['pattern_name']
+            
+            self.layers[idx] = new_layer
             self.update_listbox()
             self.layer_listbox.selection_set(idx)
             edit_dialog.destroy()
@@ -1489,6 +1687,10 @@ class CustomLayerDialog:
         button_frame.pack(fill=tk.X, pady=10)
         ttk.Button(button_frame, text="Save", command=save_changes).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
         ttk.Button(button_frame, text="Cancel", command=edit_dialog.destroy).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        
+        # Bind Enter key to save changes
+        thickness_spinbox.bind('<Return>', save_changes)
+        edit_dialog.bind('<Return>', save_changes)
         
         # Grab focus after all widgets are created
         edit_dialog.grab_set()
@@ -1685,7 +1887,7 @@ class CustomLayerDialog:
                 print(f"[DEBUG] Pattern size: {pattern_array.shape}")
                 print(f"[DEBUG] Sample pixel values: {pattern_array[0:3, 0:3]}")
                 
-                # Add as a special "pattern" type layer
+                # Add as a special "pattern" type layer with default thickness
                 self.layers.append({
                     'color': 'pattern',
                     'thickness': 1.0,
@@ -1696,9 +1898,16 @@ class CustomLayerDialog:
                 self.pattern_images.append(pattern_array)
                 self.update_listbox()
                 
-                messagebox.showinfo("Success", 
-                    f"Pattern image '{pattern_name}' added as a layer!\n\n"
-                    f"When you generate the pattern, this image will be used as a repeating layer.")
+                # Auto-select the newly added layer for quick editing
+                self.layer_listbox.selection_clear(0, tk.END)
+                self.layer_listbox.selection_set(len(self.layers) - 1)
+                self.layer_listbox.see(len(self.layers) - 1)
+                
+                # Immediately open edit dialog to set thickness
+                messagebox.showinfo("Set Thickness", 
+                    f"Pattern '{pattern_name}' added!\n\n"
+                    "Opening editor to set layer thickness...")
+                self.edit_layer()
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load pattern image: {e}")
 
