@@ -36,8 +36,8 @@ class DamascusSimulator:
         self.original_image = None
         self.display_image = None
         self.pattern_array = None
-        self.canvas_width = 900
-        self.canvas_height = 700
+        self.canvas_width = 1350  # Wider canvas for full window width
+        self.canvas_height = 500  # Shorter to fit horizontal layout
         
         # Pattern parameters
         self.twist_amount = tk.DoubleVar(value=0.0)
@@ -52,6 +52,10 @@ class DamascusSimulator:
         self.current_pattern_type = None  # Track which pattern is active
         self.custom_layer_stack = None  # Store custom layer stack for W/C patterns
         
+        # Transformation history for undo and export steps
+        self.transformation_steps = []  # List of (step_name, pattern_array) tuples
+        self.current_step_index = -1  # Track which step we're viewing
+        
         # Debug mode
         self.debug_mode = tk.BooleanVar(value=False)
         self.debug_mode.trace_add('write', self.on_debug_mode_change)
@@ -60,6 +64,7 @@ class DamascusSimulator:
         # Canvas background
         self.canvas_bg_image = None
         self.canvas_bg_tile = None
+        self.corner_logo_refs = []  # Store references to corner logo PhotoImages
         self.load_default_canvas_background()
         
         # Default save directory
@@ -68,7 +73,8 @@ class DamascusSimulator:
         
         self.setup_ui()
         self.load_default_pattern()
-        self.update_canvas_background()
+        # Delay canvas background until window is fully rendered
+        self.root.after(100, self.update_canvas_background)
     
     def ensure_save_directory(self):
         """Ensure the default save directory exists"""
@@ -100,24 +106,56 @@ class DamascusSimulator:
             print(f"[WARNING] Could not load canvas background: {e}")
     
     def update_canvas_background(self):
-        """Update the canvas background with tiled logo"""
-        if self.canvas_bg_image:
-            try:
-                # Create tiled background for full canvas
-                bg = Image.new('RGB', (self.canvas_width, self.canvas_height), self.colors['canvas_bg'])
-                bg_width, bg_height = self.canvas_bg_image.size
+        """Update the canvas background with dynamic green and corner logos"""
+        try:
+            # Delete old background elements
+            self.canvas.delete("bg")
+            self.corner_logo_refs.clear()
+            
+            # Get actual canvas size
+            self.canvas.update_idletasks()
+            canvas_w = self.canvas.winfo_width()
+            canvas_h = self.canvas.winfo_height()
+            
+            # Use defaults if canvas not yet sized
+            if canvas_w <= 1:
+                canvas_w = self.canvas_width
+            if canvas_h <= 1:
+                canvas_h = self.canvas_height
+            
+            # Draw solid green background as a canvas rectangle
+            self.canvas.create_rectangle(0, 0, canvas_w, canvas_h, 
+                                        fill='#00ff00', outline='', tags="bg")
+            
+            # Add logos if available
+            if self.canvas_bg_image:
+                # Extract single logo from 2x2 grid
+                orig_width, orig_height = self.canvas_bg_image.size
+                single_logo_width = orig_width // 2
+                single_logo_height = orig_height // 2
+                logo = self.canvas_bg_image.crop((0, 0, single_logo_width, single_logo_height))
                 
-                # Tile the logo across the canvas
-                for y in range(0, self.canvas_height, bg_height):
-                    for x in range(0, self.canvas_width, bg_width):
-                        bg.paste(self.canvas_bg_image, (x, y))
+                # Scale logo
+                scale_factor = min(200 / single_logo_width, 150 / single_logo_height)
+                new_width = int(single_logo_width * scale_factor)
+                new_height = int(single_logo_height * scale_factor)
+                logo_resized = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
                 
-                # Convert to PhotoImage and set as canvas background
-                self.canvas_bg_tile = ImageTk.PhotoImage(bg)
-                self.canvas.create_image(0, 0, anchor=tk.NW, image=self.canvas_bg_tile, tags="bg")
-                self.canvas.tag_lower("bg")
-            except Exception as e:
-                print(f"[WARNING] Could not set canvas background: {e}")
+                padding = 10
+                
+                # Create PhotoImage for single logo
+                logo_photo = ImageTk.PhotoImage(logo_resized)
+                self.corner_logo_refs.append(logo_photo)
+                
+                # Place single logo in top-left corner
+                self.canvas.create_image(padding, padding, anchor=tk.NW, 
+                                        image=logo_photo, tags="bg")
+            
+            # Make sure background is behind everything
+            self.canvas.tag_lower("bg")
+            
+        except Exception as e:
+            print(f"[WARNING] Could not set canvas background: {e}")
     
     def change_canvas_background(self):
         """Allow user to change the canvas background"""
@@ -245,14 +283,14 @@ class DamascusSimulator:
         self.root.configure(bg=self.colors['bg'])
         
     def setup_ui(self):
-        """Create the user interface"""
+        """Create the user interface - horizontal layout"""
         # Main container
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Top menu bar with split layout
         menubar = ttk.Frame(main_frame)
-        menubar.pack(fill=tk.X, padx=15, pady=(10, 0))
+        menubar.pack(fill=tk.X, padx=15, pady=(10, 5))
         
         # Left side menu items
         left_menu = ttk.Frame(menubar)
@@ -260,6 +298,8 @@ class DamascusSimulator:
         
         ttk.Button(left_menu, text="Load Pattern", command=self.load_pattern).pack(side=tk.LEFT, padx=2)
         ttk.Button(left_menu, text="Load Default", command=self.load_default_pattern).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_menu, text="Undo Last Step", command=self.undo_last_step).pack(side=tk.LEFT, padx=2)
+        ttk.Button(left_menu, text="Export Steps", command=self.export_steps).pack(side=tk.LEFT, padx=2)
         ttk.Button(left_menu, text="Save as Layer", command=self.save_pattern_as_layer).pack(side=tk.LEFT, padx=2)
         ttk.Button(left_menu, text="Export", command=self.save_pattern).pack(side=tk.LEFT, padx=2)
         ttk.Button(left_menu, text="Print", command=self.print_pattern).pack(side=tk.LEFT, padx=2)
@@ -276,56 +316,57 @@ class DamascusSimulator:
         ttk.Button(right_menu, text="Check for Updates", command=self.check_for_updates).pack(side=tk.LEFT, padx=2)
         ttk.Button(right_menu, text="About", command=self.show_about).pack(side=tk.LEFT, padx=2)
         
-        # Content area
-        content_frame = ttk.Frame(main_frame)
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=10)
-        
-        # Left panel - Canvas
-        left_frame = ttk.Frame(content_frame)
-        left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        # Canvas area - full width
+        canvas_frame = ttk.Frame(main_frame)
+        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=(5, 10))
         
         # Canvas for image display with modern styling
-        canvas_container = ttk.Frame(left_frame)
-        canvas_container.pack(fill=tk.BOTH, expand=True)
-        
-        self.canvas = tk.Canvas(canvas_container, width=self.canvas_width, height=self.canvas_height, 
+        self.canvas = tk.Canvas(canvas_frame, width=self.canvas_width, height=self.canvas_height, 
                                bg=self.colors['canvas_bg'], highlightthickness=2, 
                                highlightbackground=self.colors['border'])
-        self.canvas.pack(padx=5, pady=5)
+        self.canvas.pack(fill=tk.BOTH, expand=True)
         
-        # Right panel - Controls with scrollbar
-        right_frame = ttk.Frame(content_frame, width=420)
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH)
-        right_frame.pack_propagate(False)
+        # Bind canvas resize to update background and recenter pattern
+        def on_canvas_resize(event):
+            # Update canvas dimensions
+            self.canvas_width = event.width
+            self.canvas_height = event.height
+            # Redraw everything
+            if self.pattern_array is not None:
+                self.update_pattern()
+        self.canvas.bind('<Configure>', on_canvas_resize)
         
-        # Create canvas and scrollbar for right panel
-        canvas = tk.Canvas(right_frame, width=405, bg=self.colors['bg'], 
-                          highlightthickness=0, borderwidth=0)
-        scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        # Bottom controls panel with horizontal scrollbar
+        controls_container = ttk.Frame(main_frame)
+        controls_container.pack(fill=tk.X, padx=15, pady=(0, 10))
         
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # Create horizontal scrollbar and canvas for controls
+        h_scrollbar = ttk.Scrollbar(controls_container, orient="horizontal")
+        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
         
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        controls_canvas = tk.Canvas(controls_container, height=250, bg=self.colors['bg'],
+                                   highlightthickness=0, borderwidth=0,
+                                   xscrollcommand=h_scrollbar.set)
+        controls_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        h_scrollbar.config(command=controls_canvas.xview)
         
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Scrollable frame for controls
+        controls_frame = ttk.Frame(controls_canvas)
+        controls_canvas.create_window((0, 0), window=controls_frame, anchor="nw")
         
-        # Bind mouse wheel to scroll
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        def _on_frame_configure(event):
+            controls_canvas.configure(scrollregion=controls_canvas.bbox("all"))
+        controls_frame.bind("<Configure>", _on_frame_configure)
         
-        # Use scrollable_frame instead of right_frame for all controls
-        right_frame = scrollable_frame
+        # Bind horizontal scroll with mouse wheel (Shift+wheel for horizontal)
+        def _on_h_mousewheel(event):
+            controls_canvas.xview_scroll(int(-1*(event.delta/120)), "units")
+        controls_canvas.bind_all("<Shift-MouseWheel>", _on_h_mousewheel)
         
+        # Layout all controls horizontally in the bottom panel
         # Transformations section
-        transform_frame = ttk.LabelFrame(right_frame, text="Transformations", padding=15)
-        transform_frame.pack(fill=tk.X, pady=(0, 8))
+        transform_frame = ttk.LabelFrame(controls_frame, text="Transformations", padding=10)
+        transform_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
         
         # Twist amount
         ttk.Label(transform_frame, text="Twist Amount:").pack(anchor=tk.W, pady=(0,3))
@@ -373,8 +414,8 @@ class DamascusSimulator:
         grind_spinbox.bind('<FocusOut>', lambda e: self.update_pattern())
         
         # Layer thickness controls
-        layer_frame = ttk.LabelFrame(right_frame, text="Layer Thickness", padding=15)
-        layer_frame.pack(fill=tk.X, pady=(0, 8))
+        layer_frame = ttk.LabelFrame(controls_frame, text="Layer Thickness", padding=10)
+        layer_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
         
         # Unit selection
         unit_frame = ttk.Frame(layer_frame)
@@ -417,22 +458,22 @@ class DamascusSimulator:
         black_spinbox.bind('<Return>', lambda e: self.on_layer_change())
         black_spinbox.bind('<FocusOut>', lambda e: self.on_layer_change())
         
-        # Two column layout for rotation and mosaic
-        layout_frame = ttk.Frame(right_frame)
-        layout_frame.pack(fill=tk.X, pady=(0, 8))
+        # Rotation and mosaic in separate columns
+        layout_frame = ttk.Frame(controls_frame)
+        layout_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
         
-        # Left column - Rotation
-        rotation_frame = ttk.LabelFrame(layout_frame, text="Rotation", padding=15)
-        rotation_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 4))
+        # Rotation
+        rotation_frame = ttk.LabelFrame(layout_frame, text="Rotation", padding=10)
+        rotation_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 4))
         
         for angle in [0, 90, 180, 270]:
             ttk.Radiobutton(rotation_frame, text=f"{angle}°", 
                           variable=self.rotation_angle, value=angle,
                           command=self.update_pattern).pack(anchor=tk.W, pady=3)
         
-        # Right column - Quick Mosaic
-        mosaic_frame = ttk.LabelFrame(layout_frame, text="Quick Mosaic", padding=15)
-        mosaic_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0))
+        # Quick Mosaic
+        mosaic_frame = ttk.LabelFrame(layout_frame, text="Quick Mosaic", padding=10)
+        mosaic_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 0))
         
         for i, size in enumerate([1, 2, 3]):
             ttk.Radiobutton(mosaic_frame, text=f"{size}×{size}", 
@@ -440,24 +481,17 @@ class DamascusSimulator:
                           command=self.update_pattern).pack(anchor=tk.W, pady=3)
         
         # Custom builders section
-        builders_frame = ttk.LabelFrame(right_frame, text="Pattern Builders", padding=15)
-        builders_frame.pack(fill=tk.X, pady=(0, 8))
+        builders_frame = ttk.LabelFrame(controls_frame, text="Pattern Builders", padding=10)
+        builders_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
         
-        builder_buttons = ttk.Frame(builders_frame)
-        builder_buttons.pack(fill=tk.X)
-        
-        ttk.Button(builder_buttons, text="Custom Layers",
-                  command=self.open_custom_layer_builder).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
-        ttk.Button(builder_buttons, text="Custom Mosaic",
-                  command=self.open_mosaic_builder).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 0))
+        ttk.Button(builders_frame, text="Custom Layers",
+                  command=self.open_custom_layer_builder).pack(fill=tk.X, pady=(0, 4))
+        ttk.Button(builders_frame, text="Custom Mosaic",
+                  command=self.open_mosaic_builder).pack(fill=tk.X)
         
         # Preset patterns
-        preset_frame = ttk.LabelFrame(right_frame, text="Preset Patterns", padding=15)
-        preset_frame.pack(fill=tk.X, pady=(0, 8))
-        
-        # Two-column grid for presets
-        preset_grid = ttk.Frame(preset_frame)
-        preset_grid.pack(fill=tk.X)
+        preset_frame = ttk.LabelFrame(controls_frame, text="Preset Patterns", padding=10)
+        preset_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 0))
         
         presets = [
             ("Simple Layers", self.create_simple_layers),
@@ -466,16 +500,8 @@ class DamascusSimulator:
             ("C Pattern", lambda: self.create_c_pattern(use_custom_stack=False)),
         ]
         
-        for i, (name, func) in enumerate(presets):
-            row = i // 2
-            col = i % 2
-            padx = (0, 4) if col == 0 else (4, 0)
-            ttk.Button(preset_grid, text=name, command=func).grid(
-                row=row, column=col, sticky="ew", pady=2, padx=padx)
-        
-        # Make columns equal width
-        preset_grid.columnconfigure(0, weight=1)
-        preset_grid.columnconfigure(1, weight=1)
+        for name, func in presets:
+            ttk.Button(preset_frame, text=name, command=func).pack(fill=tk.X, pady=2)
     
     def load_pattern(self):
         """Load a pattern image from file"""
@@ -649,7 +675,27 @@ class DamascusSimulator:
         self.update_pattern()
     
     def create_w_pattern(self, use_custom_stack=None):
-        """Create a W pattern (chevron/zigzag layers forming W shapes)"""
+        """Create a W pattern (C patterns stacked repeatedly in same orientation)
+        
+        REAL-WORLD FORGING PROCESS:
+        1. Start with simple alternating layers
+        2. Forge weld and compress on bias to create C pattern
+        3. Draw out (stretch) the C-pattern billet
+        4. Clean surface, cut into pieces
+        5. Stack the C-pattern pieces VERTICALLY (on top of each other)
+        6. Forge weld the stack - the repeating C curves create W waves
+        
+        VISUAL REPRESENTATION:
+        - Shows TWO C patterns placed SIDE-BY-SIDE horizontally
+        - This simulates what you see when looking at the edge of a W-pattern billet
+        - In reality, the C's are stacked vertically during forging
+        - The visual shows the final appearance after forging and grinding
+        
+        IMPORTANT DISTINCTION:
+        - FORGING: C patterns are stacked vertically (like pancakes)
+        - VISUAL: We show them side-by-side (what you see on the blade edge)
+        - Both representations are correct for their context!
+        """
         # If no custom stack specified, clear it to use default layers
         if use_custom_stack is False:
             self.custom_layer_stack = None
@@ -658,28 +704,44 @@ class DamascusSimulator:
         img = Image.new('RGB', (size, size))
         pixels = img.load()
         
-        # Create W pattern - layers form chevron/V shapes
-        # The pattern creates alternating peaks and valleys
-        wavelength = size // 4  # Width of each V in the W
-        amplitude = 60  # Height of the V shapes
+        # Create W pattern using sine wave distortion
+        # This creates the rounded wave pattern from stacked C patterns
+        import math
         
-        for x in range(size):
-            for y in range(size):
-                # Calculate the position in the W wave pattern
-                # Create W shape using absolute sine-like pattern
-                wave_pos = x % (wavelength * 2)
-                if wave_pos < wavelength:
-                    # Upward slope (forming left side of V)
-                    offset = int((wave_pos / wavelength) * amplitude)
+        # Wave parameters
+        wave_amplitude = 40  # How much the layers wave
+        wave_frequency = 4   # Number of complete waves vertically
+        
+        for y in range(size):
+            for x in range(size):
+                # W pattern = two C patterns side by side
+                # Split the canvas in half horizontally
+                half_width = size / 2
+                
+                # Determine which half we're in
+                if x < half_width:
+                    # Left C pattern
+                    x_normalized = x / half_width  # 0 to 1 within left half
                 else:
-                    # Downward slope (forming right side of V)
-                    offset = int(((wavelength * 2 - wave_pos) / wavelength) * amplitude)
+                    # Right C pattern
+                    x_normalized = (x - half_width) / half_width  # 0 to 1 within right half
                 
-                # Calculate which layer we're in
-                adjusted_y = y - offset
+                # Create C pattern (same as what we just had)
+                # Base sinusoidal wave
+                wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
                 
-                # Get color based on current layer stack (custom or simple)
-                color = self.get_layer_color_at_position(adjusted_y)
+                # Add parabolic curve at edges for C-shape
+                distance_from_center = abs(x_normalized - 0.5) * 2
+                edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                
+                # Combine wave with edge curvature
+                total_offset = int(wave_offset + edge_curve)
+                
+                # Apply to y position
+                distorted_y = y + total_offset
+                
+                # Get color based on the distorted position
+                color = self.get_layer_color_at_position(distorted_y)
                 
                 pixels[x, y] = color
         
@@ -689,7 +751,23 @@ class DamascusSimulator:
         self.update_pattern()
     
     def create_c_pattern(self, use_custom_stack=None):
-        """Create a C pattern (curved/arced layers)"""
+        """Create a C pattern (made by compressing simple layers on a 45° bias)
+        
+        REAL-WORLD FORGING PROCESS:
+        1. Start with simple alternating flat layers (horizontal)
+        2. Compress the welded stack on a 45° bias angle
+        3. The compression causes the edges to fold inward
+        4. This creates the characteristic C/arc shape in the layers
+        
+        VISUAL REPRESENTATION:
+        - Uses sinusoidal wave + parabolic edge curvature
+        - Wave creates the flowing pattern
+        - Edge curve simulates the inward fold from compression
+        - This is the BASE pattern for creating W patterns
+        
+        IMPORTANT: C patterns are NOT a base pattern themselves - they are
+        a transformation of simple alternating layers through bias compression.
+        """
         # If no custom stack specified, clear it to use default layers
         if use_custom_stack is False:
             self.custom_layer_stack = None
@@ -698,23 +776,32 @@ class DamascusSimulator:
         img = Image.new('RGB', (size, size))
         pixels = img.load()
         
-        # Create C pattern - layers that curve in an arc
-        # This simulates layers that have been bent into curves
-        center_y = size // 2
-        curve_strength = 0.3  # How much the layers curve
+        import math
         
-        for x in range(size):
-            for y in range(size):
-                # Calculate curve - layers bend based on horizontal position
-                # Creates a parabolic curve
-                distance_from_center = abs(x - size // 2)
-                curve_offset = int((distance_from_center ** 2) * curve_strength / size)
+        # Wave parameters (same as W pattern for consistency)
+        # These create the smooth flowing C curve
+        wave_amplitude = 40
+        
+        for y in range(size):
+            for x in range(size):
+                # Create single C pattern across full width
+                x_normalized = x / size  # 0 to 1
                 
-                # Adjust y position based on curve
-                adjusted_y = y + curve_offset
+                # Base sinusoidal wave
+                wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
                 
-                # Get color based on current layer stack (custom or simple)
-                color = self.get_layer_color_at_position(adjusted_y)
+                # Add parabolic curve at edges for C-shape
+                distance_from_center = abs(x_normalized - 0.5) * 2
+                edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                
+                # Combine wave with edge curvature
+                total_offset = int(wave_offset + edge_curve)
+                
+                # Apply to y position
+                distorted_y = y + total_offset
+                
+                # Get color based on the distorted position
+                color = self.get_layer_color_at_position(distorted_y)
                 
                 pixels[x, y] = color
         
@@ -1126,6 +1213,62 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         
         return result
     
+    def generate_simple_layers_for_export(self):
+        """Generate simple alternating layers to show as the base for C and W patterns"""
+        # Create simple horizontal alternating layers
+        size = 400
+        layer_thickness = 20  # Make layers clearly visible
+        
+        img = Image.new('RGB', (size, size))
+        draw = ImageDraw.Draw(img)
+        
+        y = 0
+        layer_index = 0
+        while y < size:
+            # Alternate between white and black
+            if layer_index % 2 == 0:
+                color = (220, 220, 220)  # Light gray (represents high-nickel steel)
+            else:
+                color = (40, 40, 40)  # Dark gray (represents high-carbon steel)
+            
+            next_y = min(y + layer_thickness, size)
+            draw.rectangle([0, y, size, next_y], fill=color)
+            
+            y = next_y
+            layer_index += 1
+        
+        return np.array(img)
+    
+    def generate_c_pattern_for_export(self):
+        """Generate C pattern to show as intermediate step for W pattern export"""
+        import math
+        size = 400
+        img = Image.new('RGB', (size, size))
+        pixels = img.load()
+        
+        wave_amplitude = 40
+        
+        for y in range(size):
+            for x in range(size):
+                x_normalized = x / size
+                wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
+                distance_from_center = abs(x_normalized - 0.5) * 2
+                edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                total_offset = int(wave_offset + edge_curve)
+                distorted_y = y + total_offset
+                
+                # Use simple layer colors for export
+                layer_thickness = 20
+                layer_index = (distorted_y // layer_thickness) % 2
+                if layer_index == 0:
+                    color = (220, 220, 220)
+                else:
+                    color = (40, 40, 40)
+                
+                pixels[x, y] = color
+        
+        return np.array(img)
+    
     def apply_mosaic(self, pattern):
         """Apply mosaic stacking"""
         mosaic = self.mosaic_size.get()
@@ -1162,11 +1305,43 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
     def update_pattern(self, *args):
         """Update the displayed pattern with all transformations"""
         self.debug_print("update_pattern() called")
+        
+        # Update background first to match current canvas size
+        self.update_canvas_background()
+        
         if self.pattern_array is None:
             self.debug_print("No pattern_array to update")
             return
         
         try:
+            # Record transformation steps for undo and export
+            self.transformation_steps = []
+            
+            # For C and W patterns, show the simple layers first
+            # These patterns are transformations of simple layers, not base patterns
+            if self.current_pattern_type in ['c_pattern', 'w_pattern']:
+                # Generate simple alternating layers to show the true base
+                simple_layers = self.generate_simple_layers_for_export()
+                
+                if self.current_pattern_type == 'c_pattern':
+                    self.transformation_steps.append(("1. Simple Alternating Layers (Base)", simple_layers))
+                    self.transformation_steps.append(("2. After C Pattern (Bias Compression)", self.pattern_array.copy()))
+                    step_offset = 2  # Next steps start at 3
+                else:  # w_pattern
+                    # W pattern needs to show: Simple → C → W progression
+                    self.transformation_steps.append(("1. Simple Alternating Layers (Base)", simple_layers))
+                    
+                    # Generate C pattern as intermediate step
+                    c_pattern = self.generate_c_pattern_for_export()
+                    self.transformation_steps.append(("2. After C Pattern (Bias Compression)", c_pattern))
+                    
+                    self.transformation_steps.append(("3. After W Pattern (Two C Patterns Side by Side)", self.pattern_array.copy()))
+                    step_offset = 3  # Next steps start at 4
+            else:
+                # For other patterns, they are the base
+                self.transformation_steps.append(("1. Base Layer Stack", self.pattern_array.copy()))
+                step_offset = 1  # Next steps start at 2
+            
             # Start with base pattern
             result = self.pattern_array.copy()
             self.debug_print(f"Base pattern: {result.shape}")
@@ -1177,26 +1352,37 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
                 self.debug_print(f"Applying rotation: {rotation}°")
                 k = rotation // 90  # Number of 90-degree rotations
                 result = np.rot90(result, k=k)
+                self.transformation_steps.append((f"{step_offset + 1}. After Rotation ({rotation}°)", result.copy()))
             
             # Apply mosaic
             mosaic_val = self.mosaic_size.get()
             if mosaic_val > 1:
                 self.debug_print(f"Applying mosaic: {mosaic_val}x{mosaic_val}")
-            result = self.apply_mosaic(result)
+                result = self.apply_mosaic(result)
+                self.transformation_steps.append((f"{step_offset + 2}. After Mosaic ({mosaic_val}×{mosaic_val})", result.copy()))
+            else:
+                result = self.apply_mosaic(result)
             
-            # Apply other transformations
+            # Apply twist
             twist_val = self.twist_amount.get()
             self.debug_print(f"Twist value retrieved: {twist_val}")
             if twist_val > 0:
                 self.debug_print(f"Applying twist: {twist_val}")
-            result = self.apply_twist(result)
+                result = self.apply_twist(result)
+                self.transformation_steps.append((f"{step_offset + 3}. After Twist ({twist_val})", result.copy()))
+            else:
+                result = self.apply_twist(result)
             
+            # Apply grind
             grind_val = self.grind_depth.get()
             grind_angle_val = self.grind_angle.get()
             self.debug_print(f"Grind values retrieved: depth={grind_val}, angle={grind_angle_val}")
             if grind_val > 0:
                 self.debug_print(f"Applying grind: {grind_val}% at {grind_angle_val}°")
-            result = self.apply_grind(result)
+                result = self.apply_grind(result)
+                self.transformation_steps.append((f"{step_offset + 4}. After Grind ({grind_val}%, {grind_angle_val}°)", result.copy()))
+            else:
+                result = self.apply_grind(result)
             
             # Convert to PIL Image
             img = Image.fromarray(result)
@@ -1266,6 +1452,206 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         except Exception as e:
             self.debug_print(f"ERROR in update_pattern: {e}")
             print(f"Error updating pattern: {e}")
+    
+    def undo_last_step(self):
+        """Undo the last transformation step"""
+        # Determine what to undo based on current settings
+        # Order: grind > twist > mosaic > rotation
+        
+        if self.grind_depth.get() > 0:
+            # Undo grind
+            self.grind_depth.set(0)
+            self.grind_angle.set(0)
+            self.update_pattern()
+            print("[INFO] Undid grind transformation")
+        elif self.twist_amount.get() > 0:
+            # Undo twist
+            self.twist_amount.set(0)
+            self.update_pattern()
+            print("[INFO] Undid twist transformation")
+        elif self.mosaic_size.get() > 1:
+            # Undo mosaic
+            self.mosaic_size.set(1)
+            self.update_pattern()
+            print("[INFO] Undid mosaic transformation")
+        elif self.rotation_angle.get() != 0:
+            # Undo rotation
+            self.rotation_angle.set(0)
+            self.update_pattern()
+            print("[INFO] Undid rotation transformation")
+        else:
+            messagebox.showinfo("Info", "No transformations to undo. Pattern is at base state.")
+    
+    def export_steps(self):
+        """Export transformation steps as a PDF showing the forging progression
+        
+        Creates a multi-page PDF document:
+        - Page 1: Introductory page with ALL forging steps properly numbered
+          - Organized by transformation type (C pattern, W pattern, etc.)
+          - Clear step-by-step instructions matching real-world forging
+        - Subsequent pages: Visual progression showing pattern at each stage
+          - Just titles and pattern images (no duplicate instructions)
+        
+        IMPORTANT NOTES:
+        - C and W patterns show simple layers as the true base
+        - Instructions accurately reflect real forging (vertical stacking for W)
+        - Works for any pattern combination the user creates
+        """
+        if not self.transformation_steps or len(self.transformation_steps) == 0:
+            messagebox.showwarning("Warning", "No transformation steps to export. Apply some transformations first.")
+            return
+        
+        filename = filedialog.asksaveasfilename(
+            title="Export Transformation Steps",
+            initialdir=self.default_save_dir,
+            defaultextension=".pdf",
+            initialfile="damascus_steps.pdf",
+            filetypes=[
+                ("PDF files", "*.pdf"),
+                ("All files", "*.*")
+            ]
+        )
+        
+        if filename:
+            try:
+                from PIL import ImageDraw, ImageFont
+                import textwrap
+                
+                # Create a list to hold all the step images
+                pdf_images = []
+                
+                # Define step descriptions
+                step_descriptions = {
+                    "base_to_C": ["Forge weld the alternating layers together under heat and pressure to create a solid billet.", 
+                                   "Compress the welded billet on a 45° bias. The compression causes edges to fold inward, creating C-shaped curves."],
+                    "C_to_W": ["Draw out (stretch) the C-pattern billet to desired length.",
+                               "Clean the surface, cut into pieces, and restack them vertically (on top of each other).",
+                               "Forge weld the restacked C-pattern pieces together. The repeating stacked C curves create the W wave pattern."],
+                    "to_Rotation": ["Rotate the billet to the desired orientation. This changes how the pattern will appear when the blade is ground."],
+                    "to_Mosaic": ["Cut the billet into equal pieces and arrange them in a grid pattern.", "Forge weld the pieces together to create a mosaic effect."],
+                    "to_Twist": ["Heat the billet and twist it along its length. The twisting distorts the layers, creating a spiral pattern."],
+                    "to_Grind": ["Grind the billet from the side to reveal the cross-section of the layers. The grind depth and angle determine how much of the pattern is exposed."],
+                }
+                
+                # Create introductory page with all forging steps
+                intro_page = Image.new('RGB', (1600, 2000), 'white')
+                draw = ImageDraw.Draw(intro_page)
+                
+                try:
+                    title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+                    heading_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+                    step_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 22)
+                except:
+                    title_font = ImageFont.load_default()
+                    heading_font = ImageFont.load_default()
+                    step_font = ImageFont.load_default()
+                
+                # Title
+                draw.text((50, 40), "Damascus Pattern Forging Process", fill='black', font=title_font)
+                
+                # Collect all steps in order
+                y_pos = 120
+                step_num = 1
+                
+                for i, (step_name, _) in enumerate(self.transformation_steps[:-1]):
+                    next_step_name = self.transformation_steps[i + 1][0]
+                    
+                    # Determine transition
+                    transition_key = None
+                    transition_title = None
+                    
+                    if "Simple" in step_name and "C Pattern" in next_step_name:
+                        transition_key = "base_to_C"
+                        transition_title = "Creating C Pattern from Simple Layers:"
+                    elif "C Pattern" in step_name and "W Pattern" in next_step_name:
+                        transition_key = "C_to_W"
+                        transition_title = "Creating W Pattern from C Pattern:"
+                    elif "Rotation" in next_step_name:
+                        transition_key = "to_Rotation"
+                        transition_title = "Rotation:"
+                    elif "Mosaic" in next_step_name:
+                        transition_key = "to_Mosaic"
+                        transition_title = "Mosaic:"
+                    elif "Twist" in next_step_name:
+                        transition_key = "to_Twist"
+                        transition_title = "Twist:"
+                    elif "Grind" in next_step_name:
+                        transition_key = "to_Grind"
+                        transition_title = "Grinding:"
+                    
+                    if transition_key and transition_title:
+                        # Draw section heading
+                        draw.text((50, y_pos), transition_title, fill='#000080', font=heading_font)
+                        y_pos += 50
+                        
+                        # Draw steps
+                        for step_text in step_descriptions[transition_key]:
+                            draw.text((80, y_pos), f"Step {step_num}: {step_text}", fill='black', font=step_font)
+                            y_pos += 40
+                            step_num += 1
+                        
+                        y_pos += 30  # Extra space between sections
+                
+                pdf_images.append(intro_page)
+                
+                for i, (step_name, pattern_array) in enumerate(self.transformation_steps):
+                    # Convert pattern to PIL Image
+                    step_img = Image.fromarray(pattern_array)
+                    
+                    # Scale image to reasonable size for PDF
+                    # Use narrower width to ensure text has room
+                    max_width = 1400
+                    if step_img.width > max_width:
+                        scale = max_width / step_img.width
+                        new_size = (max_width, int(step_img.height * scale))
+                        step_img = step_img.resize(new_size, Image.Resampling.LANCZOS)
+                    
+                    # More space for title and description
+                    title_height = 150
+                    # Make canvas wider than image to accommodate long text
+                    canvas_width = max(step_img.width, 1600)
+                    final_img = Image.new('RGB', (canvas_width, step_img.height + title_height), 'white')
+                    
+                    # Add title and description text
+                    draw = ImageDraw.Draw(final_img)
+                    try:
+                        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+                        desc_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
+                    except:
+                        title_font = ImageFont.load_default()
+                        desc_font = ImageFont.load_default()
+                    
+                    # Draw the step name centered
+                    text_bbox = draw.textbbox((0, 0), step_name, font=title_font)
+                    text_width = text_bbox[2] - text_bbox[0]
+                    text_x = (final_img.width - text_width) // 2
+                    draw.text((text_x, 60), step_name, fill='black', font=title_font)
+                    
+                    # Paste the pattern image below the title/description (centered)
+                    img_x = (canvas_width - step_img.width) // 2
+                    final_img.paste(step_img, (img_x, title_height))
+                    
+                    pdf_images.append(final_img)
+                
+                # Save all images as a multi-page PDF
+                if pdf_images:
+                    pdf_images[0].save(
+                        filename, 
+                        "PDF", 
+                        resolution=300.0, 
+                        save_all=True, 
+                        append_images=pdf_images[1:] if len(pdf_images) > 1 else []
+                    )
+                    messagebox.showinfo("Success", 
+                        f"Transformation steps exported to:\n{filename}\n\n"
+                        f"{len(pdf_images)} steps included in PDF.")
+                else:
+                    messagebox.showwarning("Warning", "No transformation steps to export.")
+                    
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to export steps: {e}")
+                import traceback
+                traceback.print_exc()
     
     def save_pattern(self):
         """Save the current pattern to file"""

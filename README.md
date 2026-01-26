@@ -13,10 +13,11 @@ This application allows bladesmiths, metalworkers, and enthusiasts to visualize 
 ## Features
 
 ### Pattern Generation
-- **Simple Layers**: Basic alternating white/black layer patterns
+- **Simple Layers**: Basic alternating white/black layer patterns (the foundation for all damascus)
 - **Random Pattern**: Pseudo-random layering for organic looks
-- **W Pattern**: Chevron/zigzag layers forming "W" shapes  
-- **C Pattern**: Curved/arced layers simulating bent billets
+- **C Pattern**: Layers compressed on a 45° bias, creating C-shaped curves (edges fold inward)
+- **W Pattern**: Two C patterns placed side-by-side, creating the characteristic W wave pattern
+  - **Note**: W patterns are created by stacking C-pattern billets vertically in real forging
 - **Custom Layers**: Build your own complex layer stacks with the layer builder
 
 ### Custom Layer Builder (Enhanced in v1.3)
@@ -62,6 +63,13 @@ This application allows bladesmiths, metalworkers, and enthusiasts to visualize 
 
 ### Export & Print
 - **Export formats**: PNG, JPEG, PDF (300 DPI)
+- **Export Steps**: Generate multi-page PDF showing complete forging progression
+  - Page 1: All forging steps with proper numbering and instructions
+  - Subsequent pages: Visual progression of pattern transformations
+  - Shows how to create C patterns from simple layers (forge weld + bias compression)
+  - Shows how to create W patterns from C patterns (draw out, cut, restack vertically, reweld)
+  - Includes instructions for all transformations (rotation, mosaic, twist, grind)
+- **Undo Last Step**: Step backwards through transformations (grind → twist → mosaic → rotation)
 - **Native print dialog**: Standard Linux print interface with full options
 - **Default save directory**: All files save to ~/Documents/DPS by default
 - **Save as Layer**: Export transformed patterns (with twist/grind) for use in Custom Layer Builder
@@ -279,6 +287,20 @@ This will remove:
 
 ## Version History
 
+### Version 1.4 (January 2026)
+- **Export Steps Feature**: Generate multi-page PDF guides showing complete forging progression
+  - Introductory page with all numbered steps and instructions
+  - Visual pages showing pattern at each transformation stage
+  - Accurate real-world forging descriptions for C and W patterns
+- **Undo Last Step**: Step backwards through transformations in reverse order
+- **Corrected Pattern Understanding**: C and W patterns now accurately represent real damascus forging
+  - C Pattern: Shows bias compression causing edges to fold inward
+  - W Pattern: Two C patterns side-by-side (created by vertical stacking in real forging)
+- **Horizontal Layout**: Canvas spans full width for better pattern visibility
+  - Menu controls at top, transformation controls at bottom
+  - Canvas dynamically resizes with window
+  - Patterns stay centered during window resize
+
 ### Version 1.3 (January 2026)
 - **Fixed twist transformation**: Now shows proper radial spiral for end-grain view
 - **Enhanced layer editing**: Press Enter to save changes (no need to click Save button)
@@ -309,7 +331,7 @@ This will remove:
 
 - **Inspired by**: Thor II by Christian Schnura
 - **Author**: Gary Boyce
-- **Version**: 1.3
+- **Version**: 1.4
 - **Date**: January 2026
 
 ## License
