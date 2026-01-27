@@ -821,67 +821,73 @@ class DamascusSimulator:
         - Staggered on both sides creates the characteristic ladder look
         - Shows layer distortion from the pressing process
         """
-        # If no custom stack specified, clear it to use default layers
-        if use_custom_stack is False:
-            self.custom_layer_stack = None
-        
-        size = 400
-        img = Image.new('RGB', (size, size))
-        pixels = img.load()
-        
-        import math
-        
-        # Ladder parameters
-        groove_spacing = 35  # pixels between ladder rungs
-        oval_height = 20     # height of each oval rung
-        oval_width = 8       # how much the layers bulge sideways
-        
-        for y in range(size):
-            for x in range(size):
-                # Start with base layer color
-                base_y = y
-                color = self.get_layer_color_at_position(base_y)
-                
-                # Determine if we're near a groove position (staggered pattern)
-                # Stagger grooves: every other groove is offset by half spacing
-                x_in_cycle = x % (groove_spacing * 2)
-                
-                # First set of grooves (at 0, 2*spacing, 4*spacing...)
-                if x_in_cycle < groove_spacing:
-                    groove_center = (x // (groove_spacing * 2)) * groove_spacing * 2
-                    dist_from_groove = abs(x - groove_center)
-                    
-                    if dist_from_groove < oval_height:
-                        # We're in a groove area - create oval distortion
-                        # Calculate how much to shift layers (creates oval shape)
-                        oval_factor = 1 - (dist_from_groove / oval_height)
-                        y_shift = int(math.sin(oval_factor * math.pi) * oval_width)
-                        adjusted_y = y + y_shift
-                        color = self.get_layer_color_at_position(adjusted_y)
-                else:
-                    # Second set of grooves (offset by spacing)
-                    groove_center = (x // (groove_spacing * 2)) * groove_spacing * 2 + groove_spacing
-                    dist_from_groove = abs(x - groove_center)
-                    
-                    if dist_from_groove < oval_height:
-                        # We're in a groove area - create oval distortion
-                        oval_factor = 1 - (dist_from_groove / oval_height)
-                        y_shift = int(math.sin(oval_factor * math.pi) * oval_width)
-                        adjusted_y = y + y_shift
-                        color = self.get_layer_color_at_position(adjusted_y)
-        
-                pixels[x, y] = color
-        
+        self.debug_print("create_ladder_pattern() called")
         try:
+            # If no custom stack specified, clear it to use default layers
+            if use_custom_stack is False:
+                self.custom_layer_stack = None
+            
+            size = 400
+            img = Image.new('RGB', (size, size))
+            pixels = img.load()
+            self.debug_print(f"Created ladder pattern image: {size}x{size}")
+            
+            import math
+            
+            # Ladder parameters
+            groove_spacing = 35  # pixels between ladder rungs
+            oval_height = 20     # height of each oval rung
+            oval_width = 8       # how much the layers bulge sideways
+            
+            for y in range(size):
+                for x in range(size):
+                    # Start with base layer color
+                    base_y = y
+                    color = self.get_layer_color_at_position(base_y)
+                    
+                    # Determine if we're near a groove position (staggered pattern)
+                    # Stagger grooves: every other groove is offset by half spacing
+                    x_in_cycle = x % (groove_spacing * 2)
+                    
+                    # First set of grooves (at 0, 2*spacing, 4*spacing...)
+                    if x_in_cycle < groove_spacing:
+                        groove_center = (x // (groove_spacing * 2)) * groove_spacing * 2
+                        dist_from_groove = abs(x - groove_center)
+                        
+                        if dist_from_groove < oval_height:
+                            # We're in a groove area - create oval distortion
+                            # Calculate how much to shift layers (creates oval shape)
+                            oval_factor = 1 - (dist_from_groove / oval_height)
+                            y_shift = int(math.sin(oval_factor * math.pi) * oval_width)
+                            adjusted_y = y + y_shift
+                            color = self.get_layer_color_at_position(adjusted_y)
+                    else:
+                        # Second set of grooves (offset by spacing)
+                        groove_center = (x // (groove_spacing * 2)) * groove_spacing * 2 + groove_spacing
+                        dist_from_groove = abs(x - groove_center)
+                        
+                        if dist_from_groove < oval_height:
+                            # We're in a groove area - create oval distortion
+                            oval_factor = 1 - (dist_from_groove / oval_height)
+                            y_shift = int(math.sin(oval_factor * math.pi) * oval_width)
+                            adjusted_y = y + y_shift
+                            color = self.get_layer_color_at_position(adjusted_y)
+            
+                    pixels[x, y] = color
+            
             self.original_image = img
             self.pattern_array = np.array(img)
             self.current_pattern_type = 'ladder_pattern'
+            self.debug_print("Ladder pattern array created, calling update_pattern()")
             self.update_pattern()
+            self.debug_print("Ladder pattern created successfully")
         except Exception as e:
-            print(f"[ERROR] Failed to create ladder pattern: {e}")
+            error_msg = f"Failed to create ladder pattern: {e}"
+            print(f"[ERROR] {error_msg}")
+            self.debug_print(f"ERROR: {error_msg}")
             import traceback
             traceback.print_exc()
-            messagebox.showerror("Error", f"Failed to create ladder pattern: {e}")
+            messagebox.showerror("Error", error_msg)
     
     def open_feather_builder(self):
         """Open dialog to build feather pattern"""
@@ -905,104 +911,110 @@ class DamascusSimulator:
             base_pattern: 'w' or 'simple' - pattern to start with
             split_direction: 'width' or 'length' - direction of split
         """
-        size = 400
-        img = Image.new('RGB', (size, size))
-        pixels = img.load()
-        
-        import math
-        
-        # Feather parameters
-        vein_width = 4  # Central vein thickness
-        
-        for y in range(size):
-            for x in range(size):
-                if split_direction == 'width':
-                    # Horizontal vein (split across width)
-                    center_y = size / 2
-                    distance_from_vein = abs(y - center_y)
-                    
-                    # Draw central vein as a distinct dark line
-                    if distance_from_vein < vein_width:
-                        # Central vein - dark
-                        color = (30, 30, 30)
-                    else:
-                        # Create feather barbs extending from vein
-                        # The wedge split smears/pulls layers creating elongated loops
-                        if base_pattern == 'w':
-                            # Start with W pattern layers
-                            half_width = size / 2
-                            if x < half_width:
-                                x_normalized = x / half_width
-                            else:
-                                x_normalized = (x - half_width) / half_width
-                            
-                            wave_amplitude = 40
-                            wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
-                            distance_from_center = abs(x_normalized - 0.5) * 2
-                            edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
-                            total_offset = int(wave_offset + edge_curve)
-                            base_y = y + total_offset
-                        else:
-                            base_y = y
-                        
-                        # Apply wedge smearing effect - pulls layers toward vein
-                        # Creates elongated loops that flow from vein to edges
-                        smear_intensity = distance_from_vein / (size / 2)
-                        x_oscillation = math.sin((x / size) * math.pi * 6) * 25 * smear_intensity
-                        
-                        # Pull layers toward the vein (creates the feather barb effect)
-                        if y < center_y:
-                            pull_toward_vein = int(x_oscillation)
-                        else:
-                            pull_toward_vein = int(x_oscillation)
-                        
-                        adjusted_y = base_y + pull_toward_vein
-                        color = self.get_layer_color_at_position(adjusted_y)
-                else:
-                    # Vertical vein (split across length)
-                    center_x = size / 2
-                    distance_from_vein = abs(x - center_x)
-                    
-                    # Draw central vein
-                    if distance_from_vein < vein_width:
-                        color = (30, 30, 30)
-                    else:
-                        # Create feather barbs
-                        if base_pattern == 'w':
-                            half_width = size / 2
-                            if x < half_width:
-                                x_normalized = x / half_width
-                            else:
-                                x_normalized = (x - half_width) / half_width
-                            
-                            wave_amplitude = 40
-                            wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
-                            distance_from_center = abs(x_normalized - 0.5) * 2
-                            edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
-                            total_offset = int(wave_offset + edge_curve)
-                            base_y = y + total_offset
-                        else:
-                            base_y = y
-                        
-                        # Smearing effect perpendicular to vein
-                        smear_intensity = distance_from_vein / (size / 2)
-                        y_oscillation = math.sin((y / size) * math.pi * 6) * 25 * smear_intensity
-                        
-                        adjusted_y = base_y + int(y_oscillation)
-                        color = self.get_layer_color_at_position(adjusted_y)
-                
-                pixels[x, y] = color
-        
+        self.debug_print(f"create_feather_pattern() called: base={base_pattern}, direction={split_direction}")
         try:
+            size = 400
+            img = Image.new('RGB', (size, size))
+            pixels = img.load()
+            self.debug_print(f"Created feather pattern image: {size}x{size}")
+            
+            import math
+            
+            # Feather parameters
+            vein_width = 4  # Central vein thickness
+            
+            for y in range(size):
+                for x in range(size):
+                    if split_direction == 'width':
+                        # Horizontal vein (split across width)
+                        center_y = size / 2
+                        distance_from_vein = abs(y - center_y)
+                        
+                        # Draw central vein as a distinct dark line
+                        if distance_from_vein < vein_width:
+                            # Central vein - dark
+                            color = (30, 30, 30)
+                        else:
+                            # Create feather barbs extending from vein
+                            # The wedge split smears/pulls layers creating elongated loops
+                            if base_pattern == 'w':
+                                # Start with W pattern layers
+                                half_width = size / 2
+                                if x < half_width:
+                                    x_normalized = x / half_width
+                                else:
+                                    x_normalized = (x - half_width) / half_width
+                                
+                                wave_amplitude = 40
+                                wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
+                                distance_from_center = abs(x_normalized - 0.5) * 2
+                                edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                                total_offset = int(wave_offset + edge_curve)
+                                base_y = y + total_offset
+                            else:
+                                base_y = y
+                            
+                            # Apply wedge smearing effect - pulls layers toward vein
+                            # Creates elongated loops that flow from vein to edges
+                            smear_intensity = distance_from_vein / (size / 2)
+                            x_oscillation = math.sin((x / size) * math.pi * 6) * 25 * smear_intensity
+                            
+                            # Pull layers toward the vein (creates the feather barb effect)
+                            if y < center_y:
+                                pull_toward_vein = int(x_oscillation)
+                            else:
+                                pull_toward_vein = int(x_oscillation)
+                            
+                            adjusted_y = base_y + pull_toward_vein
+                            color = self.get_layer_color_at_position(adjusted_y)
+                    else:
+                        # Vertical vein (split across length)
+                        center_x = size / 2
+                        distance_from_vein = abs(x - center_x)
+                        
+                        # Draw central vein
+                        if distance_from_vein < vein_width:
+                            color = (30, 30, 30)
+                        else:
+                            # Create feather barbs
+                            if base_pattern == 'w':
+                                half_width = size / 2
+                                if x < half_width:
+                                    x_normalized = x / half_width
+                                else:
+                                    x_normalized = (x - half_width) / half_width
+                                
+                                wave_amplitude = 40
+                                wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
+                                distance_from_center = abs(x_normalized - 0.5) * 2
+                                edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                                total_offset = int(wave_offset + edge_curve)
+                                base_y = y + total_offset
+                            else:
+                                base_y = y
+                            
+                            # Smearing effect perpendicular to vein
+                            smear_intensity = distance_from_vein / (size / 2)
+                            y_oscillation = math.sin((y / size) * math.pi * 6) * 25 * smear_intensity
+                            
+                            adjusted_y = base_y + int(y_oscillation)
+                            color = self.get_layer_color_at_position(adjusted_y)
+                    
+                    pixels[x, y] = color
+            
             self.original_image = img
             self.pattern_array = np.array(img)
             self.current_pattern_type = 'feather_pattern'
+            self.debug_print("Feather pattern array created, calling update_pattern()")
             self.update_pattern()
+            self.debug_print("Feather pattern created successfully")
         except Exception as e:
-            print(f"[ERROR] Failed to create feather pattern: {e}")
+            error_msg = f"Failed to create feather pattern: {e}"
+            print(f"[ERROR] {error_msg}")
+            self.debug_print(f"ERROR: {error_msg}")
             import traceback
             traceback.print_exc()
-            messagebox.showerror("Error", f"Failed to create feather pattern: {e}")
+            messagebox.showerror("Error", error_msg)
     
     def create_raindrop_pattern(self, drill_configs):
         """Create a raindrop pattern with multiple drill sizes
@@ -1019,73 +1031,82 @@ class DamascusSimulator:
         Args:
             drill_configs: List of dicts with {'size': int, 'pattern': str, 'density': int}
         """
-        size = 400
-        img = Image.new('RGB', (size, size))
-        pixels = img.load()
-        
-        import math
-        import random
-        
-        # Start with base layers (horizontal)
-        for y in range(size):
-            for x in range(size):
-                pixels[x, y] = self.get_layer_color_at_position(y)
-        
-        # Apply raindrop effects - drilling creates concentric rings
-        for config in drill_configs:
-            drill_size = config['size']
-            pattern_type = config['pattern']
-            density = config['density']
-            
-            # Generate drill positions
-            positions = []
-            if pattern_type == 'random':
-                num_drops = density
-                random.seed()  # Ensure different pattern each time
-                for _ in range(num_drops):
-                    positions.append((random.randint(drill_size, size-drill_size), 
-                                    random.randint(drill_size, size-drill_size)))
-            elif pattern_type == 'grid':
-                spacing = max(drill_size * 3, size // int(math.sqrt(density)))
-                for gy in range(drill_size, size, spacing):
-                    for gx in range(drill_size, size, spacing):
-                        positions.append((gx, gy))
-            elif pattern_type == 'offset':
-                spacing = max(drill_size * 3, size // int(math.sqrt(density)))
-                row = 0
-                for gy in range(drill_size, size, spacing):
-                    offset = (spacing // 2) if row % 2 == 1 else 0
-                    for gx in range(offset + drill_size, size, spacing):
-                        if gx < size - drill_size:
-                            positions.append((gx, gy))
-                    row += 1
-            
-            # Draw concentric rings around each drill position
-            # When you drill perpendicular to layers, then forge flat,
-            # the layers spread outward creating bullseye/ring patterns
-            for (cx, cy) in positions:
-                for y in range(max(0, cy - drill_size), min(size, cy + drill_size)):
-                    for x in range(max(0, cx - drill_size), min(size, cx + drill_size)):
-                        dist = math.sqrt((x - cx)**2 + (y - cy)**2)
-                        
-                        if dist <= drill_size:
-                            # Inside raindrop - show concentric layer rings
-                            # The distance from center determines which layer ring we see
-                            # This simulates how layers spread radially from the drill hole
-                            ring_y_offset = int(dist * 2)  # Convert radial dist to layer depth
-                            color = self.get_layer_color_at_position(cy + ring_y_offset)
-                            pixels[x, y] = color
-        
+        self.debug_print(f"create_raindrop_pattern() called with {len(drill_configs)} drill configs")
         try:
+            for i, config in enumerate(drill_configs):
+                self.debug_print(f"  Drill {i+1}: size={config['size']}, pattern={config['pattern']}, density={config['density']}")
+            
+            import math
+            import random
+            
+            size = 400
+            img = Image.new('RGB', (size, size))
+            pixels = img.load()
+            self.debug_print(f"Created raindrop pattern image: {size}x{size}")
+            
+            # Start with base layers (horizontal)
+            for y in range(size):
+                for x in range(size):
+                    pixels[x, y] = self.get_layer_color_at_position(y)
+        
+            # Apply raindrop effects - drilling creates concentric rings
+            for config in drill_configs:
+                drill_size = config['size']
+                pattern_type = config['pattern']
+                density = config['density']
+                
+                # Generate drill positions
+                positions = []
+                if pattern_type == 'random':
+                    num_drops = density
+                    random.seed()  # Ensure different pattern each time
+                    for _ in range(num_drops):
+                        positions.append((random.randint(drill_size, size-drill_size), 
+                                        random.randint(drill_size, size-drill_size)))
+                elif pattern_type == 'grid':
+                    spacing = max(drill_size * 3, size // int(math.sqrt(density)))
+                    for gy in range(drill_size, size, spacing):
+                        for gx in range(drill_size, size, spacing):
+                            positions.append((gx, gy))
+                elif pattern_type == 'offset':
+                    spacing = max(drill_size * 3, size // int(math.sqrt(density)))
+                    row = 0
+                    for gy in range(drill_size, size, spacing):
+                        offset = (spacing // 2) if row % 2 == 1 else 0
+                        for gx in range(offset + drill_size, size, spacing):
+                            if gx < size - drill_size:
+                                positions.append((gx, gy))
+                        row += 1
+                
+                # Draw concentric rings around each drill position
+                # When you drill perpendicular to layers, then forge flat,
+                # the layers spread outward creating bullseye/ring patterns
+                for (cx, cy) in positions:
+                    for y in range(max(0, cy - drill_size), min(size, cy + drill_size)):
+                        for x in range(max(0, cx - drill_size), min(size, cx + drill_size)):
+                            dist = math.sqrt((x - cx)**2 + (y - cy)**2)
+                            
+                            if dist <= drill_size:
+                                # Inside raindrop - show concentric layer rings
+                                # The distance from center determines which layer ring we see
+                                # This simulates how layers spread radially from the drill hole
+                                ring_y_offset = int(dist * 2)  # Convert radial dist to layer depth
+                                color = self.get_layer_color_at_position(cy + ring_y_offset)
+                                pixels[x, y] = color
+        
             self.original_image = img
             self.pattern_array = np.array(img)
             self.current_pattern_type = 'raindrop_pattern'
+            self.debug_print("Raindrop pattern array created, calling update_pattern()")
             self.update_pattern()
+            self.debug_print("Raindrop pattern created successfully")
         except Exception as e:
-            print(f"[ERROR] Failed to create raindrop pattern: {e}")
+            error_msg = f"Failed to create raindrop pattern: {e}"
+            print(f"[ERROR] {error_msg}")
+            self.debug_print(f"ERROR: {error_msg}")
             import traceback
             traceback.print_exc()
-            messagebox.showerror("Error", f"Failed to create raindrop pattern: {e}")
+            messagebox.showerror("Error", error_msg)
     
     def open_custom_layer_builder(self):
         """Open dialog to build custom layer stack"""
@@ -1097,124 +1118,135 @@ class DamascusSimulator:
     
     def create_custom_layers(self, layer_data):
         """Create pattern from custom layer data"""
-        print(f"[DEBUG] Creating custom layers with {len(layer_data)} layers")
-        
-        # Debug: inspect layer_data
-        for i, layer in enumerate(layer_data):
-            print(f"[DEBUG] Layer {i}: color={layer['color']}, has pattern_image={'pattern_image' in layer}")
-            if 'pattern_image' in layer:
-                print(f"[DEBUG]   pattern_image shape: {layer['pattern_image'].shape}")
-        
-        # First pass: determine required canvas size
-        max_width = 0
-        total_height = 0
-        
-        for i, layer in enumerate(layer_data):
-            print(f"[DEBUG] Analyzing layer {i}: color={layer.get('color', 'UNKNOWN')}")
+        try:
+            self.debug_print(f"create_custom_layers: Starting with {len(layer_data)} layers")
+            print(f"[DEBUG] Creating custom layers with {len(layer_data)} layers")
             
-            if layer['color'] == 'pattern' and 'pattern_image' in layer:
-                pattern_img = layer['pattern_image']
-                if pattern_img is not None and hasattr(pattern_img, 'shape'):
-                    pat_height, pat_width = pattern_img.shape[:2]
-                    print(f"[DEBUG] Found pattern layer: {pat_height}x{pat_width}")
-                    
-                    # Calculate scaled height based on thickness (width stays original)
-                    target_height = max(1, self.mm_to_pixels(layer['thickness']))
-                    
-                    max_width = max(max_width, pat_width)
-                    total_height += target_height
-                    print(f"[DEBUG] Pattern layer will be scaled to {target_height}x{pat_width}")
-                    print(f"[DEBUG] Updated max_width to {max_width}, total_height to {total_height}")
-                else:
-                    print(f"[ERROR] Pattern layer {i} has invalid or missing pattern_image!")
-            else:
-                thickness = max(1, self.mm_to_pixels(layer['thickness']))
-                total_height += thickness
-                print(f"[DEBUG] Added {thickness}px for {layer['color']} layer, total_height now {total_height}")
-        
-        # Validate and set dimensions
-        if total_height == 0:
-            print(f"[ERROR] No height calculated from layers! Check layer thickness.")
-            messagebox.showerror("Error", "Failed to calculate pattern height. Check layer thickness settings.")
-            return
-        
-        # If no pattern images, use default width (for white/black only stacks)
-        if max_width == 0:
-            canvas_width = 400
-            print(f"[INFO] No pattern images found, using default width: {canvas_width}px")
-        else:
-            canvas_width = max_width
-        
-        canvas_height = total_height
-        print(f"[DEBUG] Canvas size: {canvas_width}x{canvas_height}")
-        
-        img = Image.new('RGB', (canvas_width, canvas_height))
-        pixels = img.load()
-        
-        # Store the custom layer stack
-        self.custom_layer_stack = layer_data.copy()
-        
-        # Save a deep copy for editing later
-        import copy
-        self.last_custom_layer_stack = copy.deepcopy(layer_data)
-        
-        # Draw layers from bottom to top
-        y = 0
-        for layer in layer_data:
-            print(f"[DEBUG] Processing layer: color={layer['color']}, thickness={layer.get('thickness', 'N/A')}, y={y}")
+            # Debug: inspect layer_data
+            for i, layer in enumerate(layer_data):
+                print(f"[DEBUG] Layer {i}: color={layer['color']}, has pattern_image={'pattern_image' in layer}")
+                if 'pattern_image' in layer:
+                    print(f"[DEBUG]   pattern_image shape: {layer['pattern_image'].shape}")
             
-            if layer['color'] == 'pattern':
-                # Use pattern image for this layer
-                pattern_img = layer.get('pattern_image')
-                if pattern_img is not None:
-                    # Get the pattern dimensions
-                    pat_height, pat_width = pattern_img.shape[:2]
-                    print(f"[DEBUG] Original pattern size: {pat_height}x{pat_width}")
-                    
-                    # Scale pattern HEIGHT to match specified thickness in mm
-                    # Keep original WIDTH to preserve horizontal detail
-                    target_height = max(1, self.mm_to_pixels(layer['thickness']))
-                    print(f"[DEBUG] Target height for {layer['thickness']}mm: {target_height}px")
-                    
-                    # Resize pattern height only, keep original width
-                    if pat_height != target_height:
-                        print(f"[DEBUG] Scaling pattern height: {pat_height} -> {target_height}, keeping width: {pat_width}")
-                        
-                        # Resize using PIL - height only, preserve width
-                        pattern_pil = Image.fromarray(pattern_img)
-                        pattern_pil = pattern_pil.resize((pat_width, target_height), Image.Resampling.LANCZOS)
-                        pattern_img = np.array(pattern_pil)
+            # First pass: determine required canvas size
+            max_width = 0
+            total_height = 0
+            
+            for i, layer in enumerate(layer_data):
+                print(f"[DEBUG] Analyzing layer {i}: color={layer.get('color', 'UNKNOWN')}")
+                
+                if layer['color'] == 'pattern' and 'pattern_image' in layer:
+                    pattern_img = layer['pattern_image']
+                    if pattern_img is not None and hasattr(pattern_img, 'shape'):
                         pat_height, pat_width = pattern_img.shape[:2]
+                        print(f"[DEBUG] Found pattern layer: {pat_height}x{pat_width}")
+                        
+                        # Calculate scaled height based on thickness (width stays original)
+                        target_height = max(1, self.mm_to_pixels(layer['thickness']))
+                        
+                        max_width = max(max_width, pat_width)
+                        total_height += target_height
+                        print(f"[DEBUG] Pattern layer will be scaled to {target_height}x{pat_width}")
+                        print(f"[DEBUG] Updated max_width to {max_width}, total_height to {total_height}")
+                    else:
+                        print(f"[ERROR] Pattern layer {i} has invalid or missing pattern_image!")
+                else:
+                    thickness = max(1, self.mm_to_pixels(layer['thickness']))
+                    total_height += thickness
+                    print(f"[DEBUG] Added {thickness}px for {layer['color']} layer, total_height now {total_height}")
+            
+            # Validate and set dimensions
+            if total_height == 0:
+                print(f"[ERROR] No height calculated from layers! Check layer thickness.")
+                messagebox.showerror("Error", "Failed to calculate pattern height. Check layer thickness settings.")
+                return
+            
+            # If no pattern images, use default width (for white/black only stacks)
+            if max_width == 0:
+                canvas_width = 400
+                print(f"[INFO] No pattern images found, using default width: {canvas_width}px")
+            else:
+                canvas_width = max_width
+            
+            canvas_height = total_height
+            print(f"[DEBUG] Canvas size: {canvas_width}x{canvas_height}")
+            
+            img = Image.new('RGB', (canvas_width, canvas_height))
+            pixels = img.load()
+            
+            # Store the custom layer stack
+            self.custom_layer_stack = layer_data.copy()
+            
+            # Save a deep copy for editing later
+            import copy
+            self.last_custom_layer_stack = copy.deepcopy(layer_data)
+            
+            # Draw layers from bottom to top
+            y = 0
+            for layer in layer_data:
+                print(f"[DEBUG] Processing layer: color={layer['color']}, thickness={layer.get('thickness', 'N/A')}, y={y}")
+                
+                if layer['color'] == 'pattern':
+                    # Use pattern image for this layer
+                    pattern_img = layer.get('pattern_image')
+                    if pattern_img is not None:
+                        # Get the pattern dimensions
+                        pat_height, pat_width = pattern_img.shape[:2]
+                        print(f"[DEBUG] Original pattern size: {pat_height}x{pat_width}")
+                        
+                        # Scale pattern HEIGHT to match specified thickness in mm
+                        # Keep original WIDTH to preserve horizontal detail
+                        target_height = max(1, self.mm_to_pixels(layer['thickness']))
+                        print(f"[DEBUG] Target height for {layer['thickness']}mm: {target_height}px")
+                        
+                        # Resize pattern height only, keep original width
+                        if pat_height != target_height:
+                            print(f"[DEBUG] Scaling pattern height: {pat_height} -> {target_height}, keeping width: {pat_width}")
+                            
+                            # Resize using PIL - height only, preserve width
+                            pattern_pil = Image.fromarray(pattern_img)
+                            pattern_pil = pattern_pil.resize((pat_width, target_height), Image.Resampling.LANCZOS)
+                            pattern_img = np.array(pattern_pil)
+                            pat_height, pat_width = pattern_img.shape[:2]
+                        
+                        # Render the scaled pattern
+                        for py in range(pat_height):
+                            if y + py >= canvas_height:
+                                break
+                            
+                            for px in range(canvas_width):
+                                # Tile horizontally if needed
+                                src_x = px % pat_width
+                                pixels[px, y + py] = tuple(pattern_img[py, src_x])
+                        
+                        # Update y position
+                        y += pat_height
+                else:
+                    # Regular color layer
+                    thickness = max(1, self.mm_to_pixels(layer['thickness']))
+                    color = (200, 200, 200) if layer['color'] == 'white' else (50, 50, 50)
                     
-                    # Render the scaled pattern
-                    for py in range(pat_height):
+                    for py in range(thickness):
                         if y + py >= canvas_height:
                             break
-                        
                         for px in range(canvas_width):
-                            # Tile horizontally if needed
-                            src_x = px % pat_width
-                            pixels[px, y + py] = tuple(pattern_img[py, src_x])
+                            pixels[px, y + py] = color
                     
-                    # Update y position
-                    y += pat_height
-            else:
-                # Regular color layer
-                thickness = max(1, self.mm_to_pixels(layer['thickness']))
-                color = (200, 200, 200) if layer['color'] == 'white' else (50, 50, 50)
-                
-                for py in range(thickness):
-                    if y + py >= canvas_height:
-                        break
-                    for px in range(canvas_width):
-                        pixels[px, y + py] = color
-                
-                y += thickness
-        
-        self.original_image = img
-        self.pattern_array = np.array(img)
-        self.current_pattern_type = 'custom'
-        self.update_pattern()
+                    y += thickness
+            
+            self.original_image = img
+            self.pattern_array = np.array(img)
+            self.current_pattern_type = 'custom'
+            self.debug_print(f"create_custom_layers: Pattern created successfully, calling update_pattern()")
+            self.update_pattern()
+            self.debug_print(f"create_custom_layers: Completed successfully")
+        except Exception as e:
+            error_msg = f"Failed to create custom layers: {e}"
+            self.debug_print(f"ERROR in create_custom_layers: {error_msg}")
+            print(f"[ERROR] {error_msg}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", error_msg)
     
     def reset_options_only(self):
         """Reset slider values without changing the base pattern"""
@@ -1401,94 +1433,110 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         When viewing the end grain of a twisted round bar, the layers create a
         radial/spiral pattern rotating around the center point.
         """
-        twist = self.twist_amount.get()
-        if twist == 0:
-            return pattern
-        
-        height, width = pattern.shape[:2]
-        result = np.zeros_like(pattern)
-        
-        # Center point
-        center_y = height / 2
-        center_x = width / 2
-        
-        # Convert twist amount to radians per unit radius
-        twist_rate = twist * 0.05  # Adjust this factor for desired effect
-        
-        for y in range(height):
-            for x in range(width):
-                # Calculate distance from center
-                dy = y - center_y
-                dx = x - center_x
-                radius = math.sqrt(dx*dx + dy*dy)
-                
-                if radius < 0.1:  # Avoid division by zero at center
-                    result[y, x] = pattern[y, x]
-                    continue
-                
-                # Calculate angle from center
-                angle = math.atan2(dy, dx)
-                
-                # Apply twist: rotate the sampling angle based on radius
-                # Layers further from center are twisted more
-                twist_angle = radius * twist_rate
-                source_angle = angle - twist_angle
-                
-                # Convert back to coordinates
-                source_x = int(center_x + radius * math.cos(source_angle))
-                source_y = int(center_y + radius * math.sin(source_angle))
-                
-                # Clamp to valid coordinates
-                source_x = max(0, min(width - 1, source_x))
-                source_y = max(0, min(height - 1, source_y))
-                
-                result[y, x] = pattern[source_y, source_x]
-        
-        return result
+        try:
+            twist = self.twist_amount.get()
+            if twist == 0:
+                return pattern
+            
+            self.debug_print(f"apply_twist: twist={twist}, pattern shape={pattern.shape}")
+            height, width = pattern.shape[:2]
+            result = np.zeros_like(pattern)
+            
+            # Center point
+            center_y = height / 2
+            center_x = width / 2
+            
+            # Convert twist amount to radians per unit radius
+            twist_rate = twist * 0.05  # Adjust this factor for desired effect
+            
+            for y in range(height):
+                for x in range(width):
+                    # Calculate distance from center
+                    dy = y - center_y
+                    dx = x - center_x
+                    radius = math.sqrt(dx*dx + dy*dy)
+                    
+                    if radius < 0.1:  # Avoid division by zero at center
+                        result[y, x] = pattern[y, x]
+                        continue
+                    
+                    # Calculate angle from center
+                    angle = math.atan2(dy, dx)
+                    
+                    # Apply twist: rotate the sampling angle based on radius
+                    # Layers further from center are twisted more
+                    twist_angle = radius * twist_rate
+                    source_angle = angle - twist_angle
+                    
+                    # Convert back to coordinates
+                    source_x = int(center_x + radius * math.cos(source_angle))
+                    source_y = int(center_y + radius * math.sin(source_angle))
+                    
+                    # Clamp to valid coordinates
+                    source_x = max(0, min(width - 1, source_x))
+                    source_y = max(0, min(height - 1, source_y))
+                    
+                    result[y, x] = pattern[source_y, source_x]
+            
+            self.debug_print(f"apply_twist: completed successfully")
+            return result
+        except Exception as e:
+            self.debug_print(f"ERROR in apply_twist: {e}")
+            import traceback
+            traceback.print_exc()
+            return pattern  # Return original on error
     
     def apply_grind(self, pattern):
         """Simulate grinding from the side - creates a slice showing layer cross-section"""
-        grind_depth = self.grind_depth.get()
-        grind_angle = self.grind_angle.get()
-        
-        if grind_depth == 0:
-            return pattern
-        
-        height, width = pattern.shape[:2]
-        result = np.zeros_like(pattern)
-        
-        # The pattern represents the end grain of the billet
-        # When grinding from the side, we're cutting perpendicular to what we see
-        # We need to show a cross-section at the grind depth
-        
-        # Calculate grind depth as a fraction through the depth of the billet
-        # We'll simulate depth by using the X-axis of the pattern as the depth dimension
-        max_depth = width
-        grind_pixels = int((grind_depth / 100) * max_depth * 0.8)
-        
-        # Apply bevel angle
-        angle_rad = math.radians(grind_angle)
-        
-        # For each position on the resulting ground surface
-        for y in range(height):
-            for x in range(width):
-                # Calculate depth at this position based on bevel angle
-                # Bevel: depth varies across the width (left to right creates angled surface)
-                if grind_angle > 0:
-                    # Normalize x position (0 to 1)
-                    x_norm = x / width
-                    # Calculate additional depth due to bevel
-                    bevel_depth = int(x_norm * grind_pixels * math.tan(angle_rad) * 2)
-                    total_depth = grind_pixels + bevel_depth
-                else:
-                    total_depth = grind_pixels
-                
-                # Sample from the pattern at this depth
-                # Use the pattern column at total_depth as the source
-                depth_x = min(total_depth, width - 1)
-                result[y, x] = pattern[y, depth_x]
-        
-        return result
+        try:
+            grind_depth = self.grind_depth.get()
+            grind_angle = self.grind_angle.get()
+            
+            if grind_depth == 0:
+                return pattern
+            
+            self.debug_print(f"apply_grind: depth={grind_depth}%, angle={grind_angle}°, pattern shape={pattern.shape}")
+            height, width = pattern.shape[:2]
+            result = np.zeros_like(pattern)
+            
+            # The pattern represents the end grain of the billet
+            # When grinding from the side, we're cutting perpendicular to what we see
+            # We need to show a cross-section at the grind depth
+            
+            # Calculate grind depth as a fraction through the depth of the billet
+            # We'll simulate depth by using the X-axis of the pattern as the depth dimension
+            max_depth = width
+            grind_pixels = int((grind_depth / 100) * max_depth * 0.8)
+            
+            # Apply bevel angle
+            angle_rad = math.radians(grind_angle)
+            
+            # For each position on the resulting ground surface
+            for y in range(height):
+                for x in range(width):
+                    # Calculate depth at this position based on bevel angle
+                    # Bevel: depth varies across the width (left to right creates angled surface)
+                    if grind_angle > 0:
+                        # Normalize x position (0 to 1)
+                        x_norm = x / width
+                        # Calculate additional depth due to bevel
+                        bevel_depth = int(x_norm * grind_pixels * math.tan(angle_rad) * 2)
+                        total_depth = grind_pixels + bevel_depth
+                    else:
+                        total_depth = grind_pixels
+                    
+                    # Sample from the pattern at this depth
+                    # Use the pattern column at total_depth as the source
+                    depth_x = min(total_depth, width - 1)
+                    result[y, x] = pattern[y, depth_x]
+            
+            self.debug_print(f"apply_grind: completed successfully")
+            return result
+        except Exception as e:
+            self.debug_print(f"ERROR in apply_grind: {e}")
+            import traceback
+            traceback.print_exc()
+            return pattern  # Return original on error
     
     def generate_simple_layers_for_export(self):
         """Generate simple alternating layers to show as the base for C and W patterns"""
@@ -1548,36 +1596,44 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
     
     def apply_mosaic(self, pattern):
         """Apply mosaic stacking"""
-        mosaic = self.mosaic_size.get()
-        if mosaic == 1:
-            return pattern
-        
-        height, width = pattern.shape[:2]
-        new_height = height // mosaic
-        new_width = width // mosaic
-        
-        # Resize pattern to fit mosaic tile
-        tile = Image.fromarray(pattern).resize((new_width, new_height))
-        tile_array = np.array(tile)
-        
-        # Create mosaic
-        result = np.zeros((height, width, 3), dtype=np.uint8)
-        
-        for i in range(mosaic):
-            for j in range(mosaic):
-                y_start = i * new_height
-                x_start = j * new_width
-                y_end = min((i + 1) * new_height, height)
-                x_end = min((j + 1) * new_width, width)
-                
-                # Alternate rotation for visual interest
-                if (i + j) % 2 == 1:
-                    rotated_tile = np.rot90(tile_array, k=2)
-                    result[y_start:y_end, x_start:x_end] = rotated_tile[:y_end-y_start, :x_end-x_start]
-                else:
-                    result[y_start:y_end, x_start:x_end] = tile_array[:y_end-y_start, :x_end-x_start]
-        
-        return result
+        try:
+            mosaic = self.mosaic_size.get()
+            if mosaic == 1:
+                return pattern
+            
+            self.debug_print(f"apply_mosaic: size={mosaic}x{mosaic}, pattern shape={pattern.shape}")
+            height, width = pattern.shape[:2]
+            new_height = height // mosaic
+            new_width = width // mosaic
+            
+            # Resize pattern to fit mosaic tile
+            tile = Image.fromarray(pattern).resize((new_width, new_height))
+            tile_array = np.array(tile)
+            
+            # Create mosaic
+            result = np.zeros((height, width, 3), dtype=np.uint8)
+            
+            for i in range(mosaic):
+                for j in range(mosaic):
+                    y_start = i * new_height
+                    x_start = j * new_width
+                    y_end = min((i + 1) * new_height, height)
+                    x_end = min((j + 1) * new_width, width)
+                    
+                    # Alternate rotation for visual interest
+                    if (i + j) % 2 == 1:
+                        rotated_tile = np.rot90(tile_array, k=2)
+                        result[y_start:y_end, x_start:x_end] = rotated_tile[:y_end-y_start, :x_end-x_start]
+                    else:
+                        result[y_start:y_end, x_start:x_end] = tile_array[:y_end-y_start, :x_end-x_start]
+            
+            self.debug_print(f"apply_mosaic: completed successfully")
+            return result
+        except Exception as e:
+            self.debug_print(f"ERROR in apply_mosaic: {e}")
+            import traceback
+            traceback.print_exc()
+            return pattern  # Return original on error
     
     def update_pattern(self, *args):
         """Update the displayed pattern with all transformations"""
@@ -1591,6 +1647,7 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
             return
         
         try:
+            self.debug_print(f"Pattern type: {self.current_pattern_type}, Array shape: {self.pattern_array.shape}")
             # Record transformation steps for undo and export
             self.transformation_steps = []
             
@@ -1727,8 +1784,12 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
             self.debug_print(f"Canvas updated at position ({x}, {y})")
             
         except Exception as e:
-            self.debug_print(f"ERROR in update_pattern: {e}")
-            print(f"Error updating pattern: {e}")
+            error_msg = f"Error updating pattern: {e}"
+            self.debug_print(f"ERROR in update_pattern: {error_msg}")
+            print(f"[ERROR] {error_msg}")
+            import traceback
+            traceback.print_exc()
+            self.debug_print(f"Traceback: {traceback.format_exc()}")
     
     def undo_last_step(self):
         """Undo the last transformation step"""
@@ -1951,6 +2012,7 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         
         if filename:
             try:
+                self.debug_print(f"save_pattern: Saving to {filename}")
                 # Recreate the pattern at full resolution
                 result = self.apply_mosaic(self.pattern_array.copy())
                 result = self.apply_twist(result)
@@ -1960,12 +2022,18 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
                 
                 # Save as PDF if requested
                 if filename.lower().endswith('.pdf'):
+                    self.debug_print("save_pattern: Saving as PDF")
                     img.save(filename, "PDF", resolution=300.0)
                 else:
+                    self.debug_print("save_pattern: Saving as image")
                     img.save(filename)
                 
+                self.debug_print(f"save_pattern: Successfully saved to {filename}")
                 messagebox.showinfo("Success", f"Pattern exported to {filename}")
             except Exception as e:
+                self.debug_print(f"ERROR in save_pattern: {e}")
+                import traceback
+                traceback.print_exc()
                 messagebox.showerror("Error", f"Failed to export image: {e}")
     
     def save_pattern_as_layer(self):
@@ -1988,6 +2056,7 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         
         if filename:
             try:
+                self.debug_print(f"save_pattern_as_layer: Saving to {filename}")
                 # Save the TRANSFORMED pattern (what user sees on screen)
                 result = self.pattern_array.copy()
                 
@@ -2007,10 +2076,14 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
                 img = Image.fromarray(result)
                 img.save(filename)
                 
+                self.debug_print(f"save_pattern_as_layer: Successfully saved to {filename}")
                 messagebox.showinfo("Success", 
                     f"Pattern saved as layer image:\n{filename}\n\n"
                     "You can now use this image in the Custom Layer Builder.")
             except Exception as e:
+                self.debug_print(f"ERROR in save_pattern_as_layer: {e}")
+                import traceback
+                traceback.print_exc()
                 messagebox.showerror("Error", f"Failed to save pattern: {e}")
     
     def print_pattern(self):
@@ -2750,12 +2823,19 @@ class FeatherBuilderDialog:
     
     def generate_pattern(self):
         """Generate the feather pattern"""
-        base = self.base_pattern.get()
-        direction = self.split_direction.get()
-        
-        self.simulator.create_feather_pattern(base_pattern=base, split_direction=direction)
-        self.dialog.destroy()
-        messagebox.showinfo("Success", f"Created feather pattern from {base} base")
+        try:
+            base = self.base_pattern.get()
+            direction = self.split_direction.get()
+            
+            self.simulator.debug_print(f"FeatherBuilderDialog: Generating feather pattern (base={base}, direction={direction})")
+            self.simulator.create_feather_pattern(base_pattern=base, split_direction=direction)
+            self.dialog.destroy()
+            messagebox.showinfo("Success", f"Created feather pattern from {base} base")
+        except Exception as e:
+            self.simulator.debug_print(f"ERROR in FeatherBuilderDialog.generate_pattern: {e}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to generate feather pattern: {e}")
 
 class RaindropBuilderDialog:
     """Dialog for building raindrop damascus patterns"""
@@ -2866,22 +2946,29 @@ class RaindropBuilderDialog:
     
     def generate_pattern(self):
         """Generate the raindrop pattern"""
-        # Collect all drill configurations
-        drill_configs = []
-        for widgets in self.config_widgets:
-            drill_configs.append({
-                'size': widgets['size'].get(),
-                'pattern': widgets['pattern'].get(),
-                'density': widgets['density'].get()
-            })
-        
-        if not drill_configs:
-            messagebox.showwarning("No Configuration", "Please configure at least one drill size")
-            return
-        
-        self.simulator.create_raindrop_pattern(drill_configs)
-        self.dialog.destroy()
-        messagebox.showinfo("Success", f"Created raindrop pattern with {len(drill_configs)} drill sizes")
+        try:
+            # Collect all drill configurations
+            drill_configs = []
+            for widgets in self.config_widgets:
+                drill_configs.append({
+                    'size': widgets['size'].get(),
+                    'pattern': widgets['pattern'].get(),
+                    'density': widgets['density'].get()
+                })
+            
+            if not drill_configs:
+                messagebox.showwarning("No Configuration", "Please configure at least one drill size")
+                return
+            
+            self.simulator.debug_print(f"RaindropBuilderDialog: Generating raindrop pattern with {len(drill_configs)} drill configs")
+            self.simulator.create_raindrop_pattern(drill_configs)
+            self.dialog.destroy()
+            messagebox.showinfo("Success", f"Created raindrop pattern with {len(drill_configs)} drill sizes")
+        except Exception as e:
+            self.simulator.debug_print(f"ERROR in RaindropBuilderDialog.generate_pattern: {e}")
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror("Error", f"Failed to generate raindrop pattern: {e}")
 
 def main():
     try:
