@@ -331,7 +331,8 @@ class DamascusSimulator:
             # Update canvas dimensions
             self.canvas_width = event.width
             self.canvas_height = event.height
-            # Redraw everything
+            # Redraw background and pattern when canvas size changes
+            self.update_canvas_background()
             if self.pattern_array is not None:
                 self.update_pattern()
         self.canvas.bind('<Configure>', on_canvas_resize)
@@ -344,7 +345,7 @@ class DamascusSimulator:
         h_scrollbar = ttk.Scrollbar(controls_container, orient="horizontal")
         h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
         
-        controls_canvas = tk.Canvas(controls_container, height=250, bg=self.colors['bg'],
+        controls_canvas = tk.Canvas(controls_container, height=320, bg=self.colors['bg'],
                                    highlightthickness=0, borderwidth=0,
                                    xscrollcommand=h_scrollbar.set)
         controls_canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
@@ -458,26 +459,13 @@ class DamascusSimulator:
         black_spinbox.bind('<Return>', lambda e: self.on_layer_change())
         black_spinbox.bind('<FocusOut>', lambda e: self.on_layer_change())
         
-        # Rotation and mosaic in separate columns
-        layout_frame = ttk.Frame(controls_frame)
-        layout_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
-        
         # Rotation
-        rotation_frame = ttk.LabelFrame(layout_frame, text="Rotation", padding=10)
-        rotation_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 4))
+        rotation_frame = ttk.LabelFrame(controls_frame, text="Rotation", padding=10)
+        rotation_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 8))
         
         for angle in [0, 90, 180, 270]:
             ttk.Radiobutton(rotation_frame, text=f"{angle}°", 
                           variable=self.rotation_angle, value=angle,
-                          command=self.update_pattern).pack(anchor=tk.W, pady=3)
-        
-        # Quick Mosaic
-        mosaic_frame = ttk.LabelFrame(layout_frame, text="Quick Mosaic", padding=10)
-        mosaic_frame.pack(side=tk.TOP, fill=tk.X, pady=(0, 0))
-        
-        for i, size in enumerate([1, 2, 3]):
-            ttk.Radiobutton(mosaic_frame, text=f"{size}×{size}", 
-                          variable=self.mosaic_size, value=size,
                           command=self.update_pattern).pack(anchor=tk.W, pady=3)
         
         # Custom builders section
@@ -486,8 +474,12 @@ class DamascusSimulator:
         
         ttk.Button(builders_frame, text="Custom Layers",
                   command=self.open_custom_layer_builder).pack(fill=tk.X, pady=(0, 4))
-        ttk.Button(builders_frame, text="Custom Mosaic",
-                  command=self.open_mosaic_builder).pack(fill=tk.X)
+        ttk.Button(builders_frame, text="Create Mosaic",
+                  command=self.open_mosaic_builder).pack(fill=tk.X, pady=(0, 4))
+        ttk.Button(builders_frame, text="Feather Pattern",
+                  command=self.open_feather_builder).pack(fill=tk.X, pady=(0, 4))
+        ttk.Button(builders_frame, text="Raindrop Pattern",
+                  command=self.open_raindrop_builder).pack(fill=tk.X)
         
         # Preset patterns
         preset_frame = ttk.LabelFrame(controls_frame, text="Preset Patterns", padding=10)
@@ -495,9 +487,10 @@ class DamascusSimulator:
         
         presets = [
             ("Simple Layers", self.create_simple_layers),
-            ("Random Pattern", self.create_random_pattern),
+            ("Ladder Pattern", lambda: self.create_ladder_pattern(use_custom_stack=False)),
             ("W Pattern", lambda: self.create_w_pattern(use_custom_stack=False)),
             ("C Pattern", lambda: self.create_c_pattern(use_custom_stack=False)),
+            ("Random Pattern", self.create_random_pattern),
         ]
         
         for name, func in presets:
@@ -572,6 +565,10 @@ class DamascusSimulator:
             self.create_w_pattern()
         elif self.current_pattern_type == 'c_pattern':
             self.create_c_pattern()
+        elif self.current_pattern_type == 'ladder_pattern':
+            self.create_ladder_pattern()
+        # Note: feather_pattern and raindrop_pattern use stored configs
+        # They require their builder dialogs to be reopened to change settings
     
     def get_layer_color_at_position(self, y_position):
         """Get the color at a given y position based on current layer stack"""
@@ -808,6 +805,268 @@ class DamascusSimulator:
         self.original_image = img
         self.pattern_array = np.array(img)
         self.current_pattern_type = 'c_pattern'
+        self.update_pattern()
+    
+    def create_ladder_pattern(self, use_custom_stack=None):
+        """Create a ladder pattern by simulating grooves cut across the billet
+        
+        REAL-WORLD FORGING PROCESS:
+        1. Start with layered billet (usually simple layers)
+        2. Cut/forge grooves 1/3 depth STAGGERED on both sides
+        3. Hammer/press flat to level - this pushes layers sideways
+        4. Creates oval/elongated shapes where layers are exposed
+        
+        VISUAL REPRESENTATION:
+        - Oval/elongated shapes (not just lines) running across the width
+        - Staggered on both sides creates the characteristic ladder look
+        - Shows layer distortion from the pressing process
+        """
+        # If no custom stack specified, clear it to use default layers
+        if use_custom_stack is False:
+            self.custom_layer_stack = None
+        
+        size = 400
+        img = Image.new('RGB', (size, size))
+        pixels = img.load()
+        
+        import math
+        
+        # Ladder parameters
+        groove_spacing = 35  # pixels between ladder rungs
+        oval_height = 20     # height of each oval rung
+        oval_width = 8       # how much the layers bulge sideways
+        
+        for y in range(size):
+            for x in range(size):
+                # Start with base layer color
+                base_y = y
+                color = self.get_layer_color_at_position(base_y)
+                
+                # Determine if we're near a groove position (staggered pattern)
+                # Stagger grooves: every other groove is offset by half spacing
+                x_in_cycle = x % (groove_spacing * 2)
+                
+                # First set of grooves (at 0, 2*spacing, 4*spacing...)
+                if x_in_cycle < groove_spacing:
+                    groove_center = (x // (groove_spacing * 2)) * groove_spacing * 2
+                    dist_from_groove = abs(x - groove_center)
+                    
+                    if dist_from_groove < oval_height:
+                        # We're in a groove area - create oval distortion
+                        # Calculate how much to shift layers (creates oval shape)
+                        oval_factor = 1 - (dist_from_groove / oval_height)
+                        y_shift = int(math.sin(oval_factor * math.pi) * oval_width)
+                        adjusted_y = y + y_shift
+                        color = self.get_layer_color_at_position(adjusted_y)
+                else:
+                    # Second set of grooves (offset by spacing)
+                    groove_center = (x // (groove_spacing * 2)) * groove_spacing * 2 + groove_spacing
+                    dist_from_groove = abs(x - groove_center)
+                    
+                    if dist_from_groove < oval_height:
+                        # We're in a groove area - create oval distortion
+                        oval_factor = 1 - (dist_from_groove / oval_height)
+                        y_shift = int(math.sin(oval_factor * math.pi) * oval_width)
+                        adjusted_y = y + y_shift
+                        color = self.get_layer_color_at_position(adjusted_y)
+        
+                pixels[x, y] = color
+        
+        self.original_image = img
+        self.pattern_array = np.array(img)
+        self.current_pattern_type = 'ladder_pattern'
+        self.update_pattern()
+    
+    def open_feather_builder(self):
+        """Open dialog to build feather pattern"""
+        FeatherBuilderDialog(self.root, self)
+    
+    def open_raindrop_builder(self):
+        """Open dialog to build raindrop pattern"""
+        RaindropBuilderDialog(self.root, self)
+    
+    def create_feather_pattern(self, base_pattern='w', split_direction='width'):
+        """Create a feather pattern by splitting a base pattern
+        
+        REAL-WORLD FORGING PROCESS:
+        1. Start with W pattern (or simple layers)
+        2. Split the billet from top face with DULL wedge against the grain
+        3. Wedge pulls/smears layers creating elongated loops
+        4. Rejoining seam creates the central vein
+        5. Fine parallel lines extend from vein to edges like feather barbs
+        
+        Args:
+            base_pattern: 'w' or 'simple' - pattern to start with
+            split_direction: 'width' or 'length' - direction of split
+        """
+        size = 400
+        img = Image.new('RGB', (size, size))
+        pixels = img.load()
+        
+        import math
+        
+        # Feather parameters
+        vein_width = 4  # Central vein thickness
+        
+        for y in range(size):
+            for x in range(size):
+                if split_direction == 'width':
+                    # Horizontal vein (split across width)
+                    center_y = size / 2
+                    distance_from_vein = abs(y - center_y)
+                    
+                    # Draw central vein as a distinct dark line
+                    if distance_from_vein < vein_width:
+                        # Central vein - dark
+                        color = (30, 30, 30)
+                    else:
+                        # Create feather barbs extending from vein
+                        # The wedge split smears/pulls layers creating elongated loops
+                        if base_pattern == 'w':
+                            # Start with W pattern layers
+                            half_width = size / 2
+                            if x < half_width:
+                                x_normalized = x / half_width
+                            else:
+                                x_normalized = (x - half_width) / half_width
+                            
+                            wave_amplitude = 40
+                            wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
+                            distance_from_center = abs(x_normalized - 0.5) * 2
+                            edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                            total_offset = int(wave_offset + edge_curve)
+                            base_y = y + total_offset
+                        else:
+                            base_y = y
+                        
+                        # Apply wedge smearing effect - pulls layers toward vein
+                        # Creates elongated loops that flow from vein to edges
+                        smear_intensity = distance_from_vein / (size / 2)
+                        x_oscillation = math.sin((x / size) * math.pi * 6) * 25 * smear_intensity
+                        
+                        # Pull layers toward the vein (creates the feather barb effect)
+                        if y < center_y:
+                            pull_toward_vein = int(x_oscillation)
+                        else:
+                            pull_toward_vein = int(x_oscillation)
+                        
+                        adjusted_y = base_y + pull_toward_vein
+                        color = self.get_layer_color_at_position(adjusted_y)
+                else:
+                    # Vertical vein (split across length)
+                    center_x = size / 2
+                    distance_from_vein = abs(x - center_x)
+                    
+                    # Draw central vein
+                    if distance_from_vein < vein_width:
+                        color = (30, 30, 30)
+                    else:
+                        # Create feather barbs
+                        if base_pattern == 'w':
+                            half_width = size / 2
+                            if x < half_width:
+                                x_normalized = x / half_width
+                            else:
+                                x_normalized = (x - half_width) / half_width
+                            
+                            wave_amplitude = 40
+                            wave_offset = math.cos(x_normalized * math.pi * 2) * wave_amplitude * 1.2
+                            distance_from_center = abs(x_normalized - 0.5) * 2
+                            edge_curve = (distance_from_center ** 2) * wave_amplitude * 1.0
+                            total_offset = int(wave_offset + edge_curve)
+                            base_y = y + total_offset
+                        else:
+                            base_y = y
+                        
+                        # Smearing effect perpendicular to vein
+                        smear_intensity = distance_from_vein / (size / 2)
+                        y_oscillation = math.sin((y / size) * math.pi * 6) * 25 * smear_intensity
+                        
+                        adjusted_y = base_y + int(y_oscillation)
+                        color = self.get_layer_color_at_position(adjusted_y)
+                
+                pixels[x, y] = color
+        
+        self.original_image = img
+        self.pattern_array = np.array(img)
+        self.current_pattern_type = 'feather_pattern'
+        self.update_pattern()
+    
+    def create_raindrop_pattern(self, drill_configs):
+        """Create a raindrop pattern with multiple drill sizes
+        
+        REAL-WORLD FORGING PROCESS:
+        1. Start with layered billet (horizontal layers)
+        2. Drill holes PERPENDICULAR to layers (into top/bottom face)
+        3. Forge/hammer flat - this spreads the layers around each hole
+        4. Creates concentric circular rings (like tree rings or bullseyes)
+        
+        IMPORTANT: Drills go into the TOP FACE (perpendicular to layers),
+        NOT into the end grain. We're viewing the billet from above.
+        
+        Args:
+            drill_configs: List of dicts with {'size': int, 'pattern': str, 'density': int}
+        """
+        size = 400
+        img = Image.new('RGB', (size, size))
+        pixels = img.load()
+        
+        import math
+        import random
+        
+        # Start with base layers (horizontal)
+        for y in range(size):
+            for x in range(size):
+                pixels[x, y] = self.get_layer_color_at_position(y)
+        
+        # Apply raindrop effects - drilling creates concentric rings
+        for config in drill_configs:
+            drill_size = config['size']
+            pattern_type = config['pattern']
+            density = config['density']
+            
+            # Generate drill positions
+            positions = []
+            if pattern_type == 'random':
+                num_drops = density
+                random.seed()  # Ensure different pattern each time
+                for _ in range(num_drops):
+                    positions.append((random.randint(drill_size, size-drill_size), 
+                                    random.randint(drill_size, size-drill_size)))
+            elif pattern_type == 'grid':
+                spacing = max(drill_size * 3, size // int(math.sqrt(density)))
+                for gy in range(drill_size, size, spacing):
+                    for gx in range(drill_size, size, spacing):
+                        positions.append((gx, gy))
+            elif pattern_type == 'offset':
+                spacing = max(drill_size * 3, size // int(math.sqrt(density)))
+                row = 0
+                for gy in range(drill_size, size, spacing):
+                    offset = (spacing // 2) if row % 2 == 1 else 0
+                    for gx in range(offset + drill_size, size, spacing):
+                        if gx < size - drill_size:
+                            positions.append((gx, gy))
+                    row += 1
+            
+            # Draw concentric rings around each drill position
+            # When you drill perpendicular to layers, then forge flat,
+            # the layers spread outward creating bullseye/ring patterns
+            for (cx, cy) in positions:
+                for y in range(max(0, cy - drill_size), min(size, cy + drill_size)):
+                    for x in range(max(0, cx - drill_size), min(size, cx + drill_size)):
+                        dist = math.sqrt((x - cx)**2 + (y - cy)**2)
+                        
+                        if dist <= drill_size:
+                            # Inside raindrop - show concentric layer rings
+                            # The distance from center determines which layer ring we see
+                            # This simulates how layers spread radially from the drill hole
+                            ring_y_offset = int(dist * 2)  # Convert radial dist to layer depth
+                            color = self.get_layer_color_at_position(cy + ring_y_offset)
+                            pixels[x, y] = color
+        
+        self.original_image = img
+        self.pattern_array = np.array(img)
+        self.current_pattern_type = 'raindrop_pattern'
         self.update_pattern()
     
     def open_custom_layer_builder(self):
@@ -1306,8 +1565,8 @@ GitHub: github.com/gboyce1967/damascus-pattern-simulator"""
         """Update the displayed pattern with all transformations"""
         self.debug_print("update_pattern() called")
         
-        # Update background first to match current canvas size
-        self.update_canvas_background()
+        # Don't update background on every pattern change - only when canvas resizes
+        # This prevents flickering when sliders are moved
         
         if self.pattern_array is None:
             self.debug_print("No pattern_array to update")
@@ -2418,6 +2677,193 @@ class MosaicBuilderDialog:
         
         self.dialog.destroy()
         messagebox.showinfo("Success", f"Created {h_tiles}x{v_tiles} {mosaic_type} mosaic pattern")
+
+class FeatherBuilderDialog:
+    """Dialog for building feather damascus patterns"""
+    def __init__(self, parent, simulator):
+        self.simulator = simulator
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Feather Pattern Builder")
+        self.dialog.geometry("500x400")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Create the dialog UI"""
+        main_frame = ttk.Frame(self.dialog, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        ttk.Label(main_frame, text="Feather Damascus Pattern Builder",
+                 font=('Arial', 12, 'bold')).pack(pady=(0, 10))
+        ttk.Label(main_frame, text="Create feather patterns by splitting a base pattern with a wedge",
+                 font=('Arial', 9)).pack(pady=(0, 20))
+        
+        # Base pattern selection
+        base_frame = ttk.LabelFrame(main_frame, text="Base Pattern", padding=15)
+        base_frame.pack(fill=tk.X, pady=10)
+        
+        self.base_pattern = tk.StringVar(value="w")
+        ttk.Radiobutton(base_frame, text="W Pattern (more intricate)", 
+                       variable=self.base_pattern, value="w").pack(anchor=tk.W, pady=5)
+        ttk.Radiobutton(base_frame, text="Simple Layers (less intricate)", 
+                       variable=self.base_pattern, value="simple").pack(anchor=tk.W, pady=5)
+        
+        # Split direction
+        dir_frame = ttk.LabelFrame(main_frame, text="Split Direction", padding=15)
+        dir_frame.pack(fill=tk.X, pady=10)
+        
+        self.split_direction = tk.StringVar(value="width")
+        ttk.Radiobutton(dir_frame, text="Across Width (horizontal vein)", 
+                       variable=self.split_direction, value="width").pack(anchor=tk.W, pady=5)
+        ttk.Radiobutton(dir_frame, text="Across Length (vertical vein)", 
+                       variable=self.split_direction, value="length").pack(anchor=tk.W, pady=5)
+        
+        # Action buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=20)
+        
+        ttk.Button(button_frame, text="Generate Feather Pattern",
+                  command=self.generate_pattern).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        ttk.Button(button_frame, text="Cancel",
+                  command=self.dialog.destroy).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+    
+    def generate_pattern(self):
+        """Generate the feather pattern"""
+        base = self.base_pattern.get()
+        direction = self.split_direction.get()
+        
+        self.simulator.create_feather_pattern(base_pattern=base, split_direction=direction)
+        self.dialog.destroy()
+        messagebox.showinfo("Success", f"Created feather pattern from {base} base")
+
+class RaindropBuilderDialog:
+    """Dialog for building raindrop damascus patterns"""
+    def __init__(self, parent, simulator):
+        self.simulator = simulator
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Raindrop Pattern Builder")
+        self.dialog.geometry("600x600")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Store drill configurations
+        self.drill_configs = []
+        
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Create the dialog UI"""
+        main_frame = ttk.Frame(self.dialog, padding=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        ttk.Label(main_frame, text="Raindrop Damascus Pattern Builder",
+                 font=('Arial', 12, 'bold')).pack(pady=(0, 10))
+        ttk.Label(main_frame, text="Create raindrop patterns with multiple drill bit sizes",
+                 font=('Arial', 9)).pack(pady=(0, 20))
+        
+        # Number of drill sizes
+        size_frame = ttk.LabelFrame(main_frame, text="Number of Drill Sizes", padding=15)
+        size_frame.pack(fill=tk.X, pady=10)
+        
+        self.num_sizes = tk.IntVar(value=2)
+        ttk.Label(size_frame, text="How many different drill bit sizes:").pack(anchor=tk.W)
+        size_spinbox = ttk.Spinbox(size_frame, from_=1, to=4, textvariable=self.num_sizes,
+                                   width=10, command=self.update_config_sections)
+        size_spinbox.pack(anchor=tk.W, pady=5)
+        
+        # Scrollable frame for drill configurations
+        config_container = ttk.Frame(main_frame)
+        config_container.pack(fill=tk.BOTH, expand=True, pady=10)
+        
+        # Create canvas and scrollbar
+        canvas = tk.Canvas(config_container, height=250)
+        scrollbar = ttk.Scrollbar(config_container, orient="vertical", command=canvas.yview)
+        self.config_frame = ttk.Frame(canvas)
+        
+        canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        canvas.create_window((0, 0), window=self.config_frame, anchor="nw")
+        
+        def _on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        self.config_frame.bind("<Configure>", _on_frame_configure)
+        
+        # Store widgets for each config
+        self.config_widgets = []
+        
+        # Initial configuration sections
+        self.update_config_sections()
+        
+        # Action buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=20)
+        
+        ttk.Button(button_frame, text="Generate Raindrop Pattern",
+                  command=self.generate_pattern).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+        ttk.Button(button_frame, text="Cancel",
+                  command=self.dialog.destroy).pack(side=tk.LEFT, padx=5, expand=True, fill=tk.X)
+    
+    def update_config_sections(self, *args):
+        """Update the configuration sections based on number of drill sizes"""
+        # Clear existing widgets
+        for widget in self.config_frame.winfo_children():
+            widget.destroy()
+        self.config_widgets.clear()
+        
+        num_sizes = self.num_sizes.get()
+        
+        for i in range(num_sizes):
+            # Create a frame for each drill size config
+            frame = ttk.LabelFrame(self.config_frame, text=f"Drill Size {i+1}", padding=10)
+            frame.pack(fill=tk.X, pady=5)
+            
+            # Drill size (radius)
+            size_var = tk.IntVar(value=15 - (i * 3))
+            ttk.Label(frame, text="Drill Radius (pixels):").grid(row=0, column=0, sticky=tk.W, pady=3)
+            ttk.Spinbox(frame, from_=5, to=30, textvariable=size_var, width=10).grid(row=0, column=1, padx=10, pady=3)
+            
+            # Pattern type
+            pattern_var = tk.StringVar(value="random")
+            ttk.Label(frame, text="Pattern Type:").grid(row=1, column=0, sticky=tk.W, pady=3)
+            pattern_combo = ttk.Combobox(frame, textvariable=pattern_var, 
+                                        values=["random", "grid", "offset"], 
+                                        state="readonly", width=15)
+            pattern_combo.grid(row=1, column=1, padx=10, pady=3)
+            
+            # Density
+            density_var = tk.IntVar(value=30 - (i * 5))
+            ttk.Label(frame, text="Density:").grid(row=2, column=0, sticky=tk.W, pady=3)
+            ttk.Spinbox(frame, from_=5, to=100, textvariable=density_var, width=10).grid(row=2, column=1, padx=10, pady=3)
+            
+            self.config_widgets.append({
+                'size': size_var,
+                'pattern': pattern_var,
+                'density': density_var
+            })
+    
+    def generate_pattern(self):
+        """Generate the raindrop pattern"""
+        # Collect all drill configurations
+        drill_configs = []
+        for widgets in self.config_widgets:
+            drill_configs.append({
+                'size': widgets['size'].get(),
+                'pattern': widgets['pattern'].get(),
+                'density': widgets['density'].get()
+            })
+        
+        if not drill_configs:
+            messagebox.showwarning("No Configuration", "Please configure at least one drill size")
+            return
+        
+        self.simulator.create_raindrop_pattern(drill_configs)
+        self.dialog.destroy()
+        messagebox.showinfo("Success", f"Created raindrop pattern with {len(drill_configs)} drill sizes")
 
 def main():
     root = tk.Tk()
