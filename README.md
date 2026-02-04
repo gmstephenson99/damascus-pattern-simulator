@@ -1,343 +1,390 @@
-# Damascus Steel Pattern Simulator
+# Damascus Pattern Simulator - Beta Release (3D Version)
+**Version**: 2.0-beta  
+**Release Date**: 2026-02-04  
+**Status**: 🚧 **BETA - UNDER ACTIVE DEVELOPMENT** 🚧
 
-A comprehensive tool for simulating Damascus steel patterns with various transformations and effects on Linux.
+---
 
-![Damascus Pattern Simulator](damascus-screenshot.png)
+## ⚠️ BETA SOFTWARE WARNING
 
-## Overview
+**This is beta software and is still under active development.**
 
-This application allows bladesmiths, metalworkers, and enthusiasts to visualize and experiment with Damascus steel patterns before forging. Create custom layer stacks, apply transformations like twisting and grinding, and export high-quality patterns for reference.
+### What Works
+✅ 3D mesh-based billet creation  
+✅ Static build plate system with auto-resize  
+✅ Forge to square bar (with volume conservation)  
+✅ Forge to octagonal bar (with chamfering)  
+✅ 3D visualization with camera controls  
+✅ Cross-section preview  
+✅ Export to .obj format  
 
-**Inspired by Thor II by Christian Schnura**
+### What's In Development
+🚧 **Twist/Ladder Damascus** - Implemented but needs testing  
+🚧 **Feather Damascus** - Wedge deformation needs refinement  
+🚧 **Raindrop Damascus** - Drilling operation needs testing  
+🚧 **Compression operations** - Not yet implemented  
+🚧 **Undo/Redo system** - Planned, not yet implemented  
 
-## Features
+### Known Issues
+⚠️ **No undo functionality** - Use "Reset Billet" to start over  
+⚠️ **Some pattern operations untested** - May produce unexpected results  
+⚠️ **Twist requires forging first** - Must forge to square/octagon before twisting  
+⚠️ **Performance with large billets** - Billets with >100 layers may be slow  
 
-### Pattern Generation
-- **Simple Layers**: Basic alternating white/black layer patterns (the foundation for all damascus)
-- **Random Pattern**: Pseudo-random layering for organic looks
-- **C Pattern**: Layers compressed on a 45° bias, creating C-shaped curves (edges fold inward)
-- **W Pattern**: Two C patterns placed side-by-side, creating the characteristic W wave pattern
-  - **Note**: W patterns are created by stacking C-pattern billets vertically in real forging
-- **Custom Layers**: Build your own complex layer stacks with the layer builder
+**USE AT YOUR OWN RISK. This software may have bugs, crashes, or unexpected behavior.**
 
-### Custom Layer Builder (Enhanced in v1.3)
-- Add individual layers with specific colors (white/black) and thicknesses
-- **Load pattern images as layers**: Use saved patterns (like C or W patterns) as custom layers
-- **Dynamic canvas sizing**: Automatically adjusts to accommodate wide mosaic patterns
-- **Persistent layer stacks**: Reopen builder with previous settings for easy editing
-- Edit existing layers by double-clicking or pressing Enter to save
-- **Quick save with Enter**: Change thickness and press Enter (no need to click Save)
-- Quick buttons to add 5, 10, or 20 alternating layers
-- Reorder layers (move up/down)
-- Remove layers or clear all
-- **Apply to Patterns**: Use your custom layers with W and C patterns
+---
 
-### Real-Time Transformations
-- **Twist**: Simulate twisting a round bar viewed from the end (0-10 scale)
-  - Creates radial/spiral patterns rotating around center
-  - Layers further from center show more twist
-- **Grind Depth**: Visualize pattern at different grinding depths (0-100%)
-  - Grinds perpendicular to layers (from the side, not the end)
-  - Simulates realistic knifemaking bevels
-- **Grind Angle**: Control bevel angle from 0-45 degrees for realistic knife bevels
-- **Pattern Rotation**: Rotate patterns in 90° increments (0°, 90°, 180°, 270°)
-- **Quick Mosaic**: Simple tiled arrangements (1×1, 2×2, 3×3)
-- **Custom Mosaic Builder**: Create complex mosaic patterns with:
-  - Straight line arrangements (horizontal or vertical rows)
-  - Checkerboard patterns
-  - Custom tile counts (up to 10×10)
+## 🎉 What's New in 3D Version
 
-### Layer Thickness Control
-- Adjust white and black layer thickness independently
-- Switch between metric (mm) and imperial (inches)
-- Range: 0.1mm to 5.0mm (0.004" to 0.197")
-- Real-time pattern updates
-- Spinbox inputs for precise values alongside sliders
+This is a **complete rewrite** of the Damascus Pattern Simulator using real 3D physics and mesh-based simulation. The old 2D pixel-based simulator has been deprecated in favor of this more accurate and powerful 3D engine.
 
-### Modern User Interface
-- **Dark theme**: Professional dark gray background with teal accents
-- **Split menu bar**: File operations on left, reset/about on right
-- **Two-column layouts**: Efficient use of space with side-by-side controls
-- **3D button effects**: Rounded buttons with shadow and depth
-- **Responsive controls**: Larger canvas (900×700) with better visibility
+### Major Features
 
-### Export & Print
-- **Export formats**: PNG, JPEG, PDF (300 DPI)
-- **Export Steps**: Generate multi-page PDF showing complete forging progression
-  - Page 1: All forging steps with proper numbering and instructions
-  - Subsequent pages: Visual progression of pattern transformations
-  - Shows how to create C patterns from simple layers (forge weld + bias compression)
-  - Shows how to create W patterns from C patterns (draw out, cut, restack vertically, reweld)
-  - Includes instructions for all transformations (rotation, mosaic, twist, grind)
-- **Undo Last Step**: Step backwards through transformations (grind → twist → mosaic → rotation)
-- **Native print dialog**: Standard Linux print interface with full options
-- **Default save directory**: All files save to ~/Documents/DPS by default
-- **Save as Layer**: Export transformed patterns (with twist/grind) for use in Custom Layer Builder
-- **Customizable canvas background**: Choose default logo, custom image, or solid color
+#### ✨ **3D Mesh-Based Physics Engine**
+- True 3D geometry using Open3D library
+- Real volume conservation during forging operations
+- Accurate material deformation modeling
+- Multiple heats simulation for realistic forging
 
-## Requirements
+#### 🎨 **Interactive 3D Visualization**
+- Real-time 3D viewport with matplotlib
+- Adjustable camera angles (elevation, azimuth)
+- Mouse wheel zoom support
+- Quick view presets (top, front, isometric)
+- Cross-section preview at any Z height
 
-### Required
-- Python 3.6+
-- PIL/Pillow
-- NumPy
-- Tkinter (usually included with Python)
+#### 🏭 **Static Build Plate System** (NEW!)
+- Configurable workspace dimensions (default 400×400mm)
+- Visual build plate boundary reference
+- Intelligent oversized billet warnings
+- **Auto-resize feature**: One-click build plate adjustment
+- Consistent viewport that doesn't change with billet size
 
-### Optional
-- GTK 3.0 and PyGObject (for native print dialog)
+#### 🔨 **Realistic Forging Operations** (TESTED & WORKING)
+- **Forge to Square Bar**: Compress billet into square cross-section
+- **Forge to Octagonal Bar**: Create 8-sided profile with chamfering
+- Progressive multi-heat forging simulation
+- Volume conservation validation
+- Automatic length extension calculation
 
-## Installation
+#### 📐 **Pattern Operations** (EXPERIMENTAL)
+- **Feather Damascus**: Wedge deformation with material splitting (⚠️ IN DEVELOPMENT)
+- **Twist/Ladder Damascus**: Torsional deformation around length axis (⚠️ NEEDS TESTING)
+- **Raindrop Damascus**: Drill holes with material flow simulation (⚠️ NEEDS TESTING)
+- Real-time cross-section preview showing pattern
 
-### Download from GitHub
+---
 
-**Recommended: Clone with Git (enables automatic updates)**
+## 🚀 Installation
+
+### Requirements
+- Python 3.8+
+- Virtual environment (included)
+- Linux/Ubuntu (tested on Ubuntu)
+
+### Quick Install
 ```bash
-# Clone the repository
-git clone https://github.com/gboyce1967/damascus-pattern-simulator.git
-
-# Navigate to the directory
-cd damascus-pattern-simulator
-```
-
-**Alternative: Download ZIP file (manual updates only)**
-```bash
-# Download the latest release
-wget https://github.com/gboyce1967/damascus-pattern-simulator/archive/refs/heads/main.zip
-
-# Unzip the file
-unzip main.zip
-
-# Navigate to the directory
-cd damascus-pattern-simulator-main
-```
-
-**Note**: The git clone method is recommended as it enables the automatic update feature.
-
-### Quick Install (Recommended)
-
-**For Debian/Ubuntu/Mint:**
-```bash
+cd ~/Projects/damascus-pattern-simulator
 chmod +x install-DPS.sh
 ./install-DPS.sh
 ```
 
-The installer will:
-- Check and install Python 3 if needed
-- Install all required dependencies automatically
-- Install optional GTK libraries for native print dialog
-- Make the application executable
-- Create a desktop entry in your applications menu
+This will:
+- Create a Python virtual environment
+- Install all dependencies (Open3D, matplotlib, PIL, numpy)
+- Create desktop launcher
+- Set up the application
 
-### Manual Installation
-
-If you prefer to install manually:
-
-**Debian/Ubuntu:**
+### Manual Install
 ```bash
-sudo apt update
-sudo apt install python3 python3-tk python3-pil python3-numpy python3-gi gir1.2-gtk-3.0
-chmod +x damascus_simulator.py
+python3 -m venv venv
+source venv/bin/activate
+pip install open3d matplotlib pillow numpy
 ```
-
-**Note**: On modern Ubuntu/Debian systems, use system packages (python3-pil, python3-numpy) instead of pip to avoid PEP 668 errors.
-
-**Fedora/RHEL:**
-```bash
-sudo dnf install python3 python3-tkinter python3-pillow python3-numpy python3-gobject gtk3
-chmod +x damascus_simulator.py
-```
-
-## Usage
-
-```bash
-chmod +x damascus_simulator.py
-./damascus_simulator.py
-```
-
-Or:
-
-```bash
-python3 damascus_simulator.py
-```
-
-## Updating
-
-### Automatic Updates (git installations only)
-
-If you installed via `git clone`, you can easily update:
-
-```bash
-cd damascus-pattern-simulator
-./update-DPS.sh
-```
-
-The update script will:
-- Check for available updates
-- Show you what's new
-- Update to the latest version after confirmation
-- Preserve your settings and saved patterns
-
-You can also click **Check for Updates** in the application menu.
-
-### Manual Updates (ZIP installations)
-
-If you downloaded the ZIP file:
-1. Download the latest ZIP from GitHub
-2. Extract and replace your old installation
-3. Run `./install-DPS.sh` again
-
-**Tip**: Switch to git clone for easier updates!
-
-## Quick Start
-
-1. Run the application
-2. Choose a preset pattern or create custom layers
-3. Adjust twist, grind depth, and layer thickness
-4. Export or print your pattern
-
-## Code Structure
-
-The code is well-commented and organized into three main classes:
-
-### `DamascusSimulator` Class
-- Main application window and modern UI setup
-- Pattern generation (simple, W, C, random, custom)
-- Transformation effects (twist, grind with angle, mosaic, rotation)
-- File operations (load, export, print)
-- Layer color calculation for custom stacks
-
-### `CustomLayerDialog` Class
-- Custom layer stack builder dialog
-- Layer management (add, edit, remove, reorder)
-- Quick add buttons (5, 10, 20 alternating layers)
-- Save/load layer stacks to JSON files
-- Apply custom stacks to W and C patterns
-
-### `MosaicBuilderDialog` Class
-- Custom mosaic pattern builder dialog
-- Straight line and checkerboard mosaic types
-- Configurable tile counts (horizontal and vertical)
-- Handles rotated patterns correctly
-
-### Key Methods
-
-**Pattern Creation:**
-- `create_simple_layers()` - Alternating white/black layers
-- `create_w_pattern()` - Chevron/W-shaped layers
-- `create_c_pattern()` - Curved/arced layers
-- `create_custom_layers()` - User-defined layer stacks
-
-**Transformations:**
-- `apply_twist()` - Radial twist effect for end-grain view of round bar
-- `apply_grind()` - Perpendicular grinding with bevel angle (0-45°)
-- `apply_mosaic()` - Tiled pattern arrangement (quick 1×1 to 3×3)
-
-**Utilities:**
-- `get_layer_color_at_position()` - Calculate color for custom layer stacks
-- `mm_to_pixels()` / `inches_to_mm()` - Unit conversions
-- `print_pattern()` - GTK native print dialog integration
-
-## File Formats
-
-### Layer Stack JSON
-Custom layer stacks are saved in JSON format:
-```json
-[
-  {"color": "white", "thickness": 1.5},
-  {"color": "black", "thickness": 1.0},
-  {"color": "white", "thickness": 2.0}
-]
-```
-
-### Export Formats
-- **PNG**: Lossless, best for digital use
-- **JPEG**: Compressed, smaller file size
-- **PDF**: 300 DPI, best for printing
-
-## Uninstallation
-
-To remove the Damascus Pattern Simulator:
-
-```bash
-./uninstall-DPS.sh
-```
-
-This will remove:
-- Desktop application entry
-- User-installed Python packages (pillow, numpy)
-- The main application file remains for manual deletion if desired
-
-## Troubleshooting
-
-**Print dialog doesn't appear:**
-- Install GTK: `sudo apt install python3-gi gir1.2-gtk-3.0`
-
-**Pattern looks pixelated:**
-- Normal at high twist values
-- Export resolution (300 DPI) is higher than display
-
-**Custom layers not visible:**
-- Ensure layer thicknesses are > 0.1mm
-- Check that layers were added to the list
-
-**Installer fails:**
-- Make sure the script is executable: `chmod +x install-DPS.sh`
-- Check you're on a Debian-based system (Ubuntu, Mint, etc.)
-- The installer uses system packages to avoid PEP 668 errors on modern systems
-
-## Version History
-
-### Version 1.4 (January 2026)
-- **Export Steps Feature**: Generate multi-page PDF guides showing complete forging progression
-  - Introductory page with all numbered steps and instructions
-  - Visual pages showing pattern at each transformation stage
-  - Accurate real-world forging descriptions for C and W patterns
-- **Undo Last Step**: Step backwards through transformations in reverse order
-- **Corrected Pattern Understanding**: C and W patterns now accurately represent real damascus forging
-  - C Pattern: Shows bias compression causing edges to fold inward
-  - W Pattern: Two C patterns side-by-side (created by vertical stacking in real forging)
-- **Horizontal Layout**: Canvas spans full width for better pattern visibility
-  - Menu controls at top, transformation controls at bottom
-  - Canvas dynamically resizes with window
-  - Patterns stay centered during window resize
-
-### Version 1.3 (January 2026)
-- **Fixed twist transformation**: Now shows proper radial spiral for end-grain view
-- **Enhanced layer editing**: Press Enter to save changes (no need to click Save button)
-- **Canvas background customization**: Choose logo, custom image, or solid color
-- **Improved Save as Layer**: Now saves transformed patterns with twist/grind applied
-- **Better display scaling**: Improved zoom for wide/thin patterns
-- **UI improvements**: Grind angle moved before grind depth
-
-### Version 1.2 (January 2026)
-- **Pattern images as layers**: Load saved patterns into Custom Layer Builder
-- **Dynamic canvas sizing**: Handles wide mosaic patterns (e.g., 2000×400)
-- **Persistent custom layers**: Reopen builder with previous layer stack
-- **Default save location**: ~/Documents/DPS directory
-- **Fixed installer**: Works with modern Ubuntu/Debian PEP 668 restrictions
-
-### Version 1.1 (January 2026)
-- Modern dark theme UI with teal accents
-- Enhanced grind function showing cross-sections
-- Pattern rotation controls
-- Custom mosaic builder
-- Save patterns as layers for reuse
-
-### Version 1.0 (January 2026)
-- Initial release
-- Basic pattern generation and transformations
-
-## Credits
-
-- **Inspired by**: Thor II by Christian Schnura
-- **Author**: Gary Boyce
-- **Version**: 1.4
-- **Date**: January 2026
-
-## License
-
-Open source - free to use, modify, and distribute.
 
 ---
 
-Enjoy creating beautiful Damascus patterns!
+## 🎮 Usage
+
+### Launch the Application
+```bash
+./damascus_3d_gui.py
+```
+
+Or use the desktop launcher: `Damascus Pattern Simulator`
+
+### Recommended Workflow (BETA)
+
+**For best results, start with these tested features:**
+
+1. **Create a Billet**
+   - Set layer count (default: 30 layers - TESTED)
+   - Set layer thickness (white/black: 0.8mm each)
+   - Set billet dimensions (width × length, keep under 200mm for performance)
+   - Click "Create New Billet"
+
+2. **Configure Build Plate**
+   - Adjust width/length in "Build Plate (Workspace)" section
+   - Default: 400×400mm (WORKING)
+   - Auto-resize will trigger if billet exceeds plate size (WORKING)
+
+3. **Forge the Billet** ✅ **RECOMMENDED - FULLY TESTED**
+   - Click "🔨 Forge to Square Bar" or "⬡ Forge to Octagon Bar"
+   - Enter target bar size (try 15-25mm for good results)
+   - Set number of heats (3-7 recommended)
+   - Click "Forge"
+   - Choose auto-resize if bar exceeds build plate
+
+4. **Export Your Work**
+   - 💾 Save 3D Model (.obj format) - WORKING
+   - 🖼️ Save Cross-Section (PNG image) - WORKING
+   - 📋 Save Operation Log (JSON) - WORKING
+
+5. **Pattern Operations** ⚠️ **EXPERIMENTAL - USE WITH CAUTION**
+   - These features are implemented but not fully tested
+   - May produce unexpected results
+   - Save your work before applying patterns
+   - If something goes wrong, use "🔄 Reset Billet"
+
+---
+
+## 📊 Build Plate System ✅ (WORKING)
+
+### What is the Build Plate?
+The build plate represents your workspace - a fixed area where billets can be placed. This mimics real-world manufacturing where you have workspace constraints.
+
+### Features
+- **Static Reference Frame**: Viewport doesn't resize with every billet change ✅
+- **Visual Boundary**: Dashed gray rectangle shows workspace limits ✅
+- **Intelligent Warnings**: Alerts when billet or forged bar exceeds plate size ✅
+- **Auto-Resize**: One-click adjustment to fit oversized billets ✅
+
+### Auto-Resize Options
+When a billet exceeds the build plate, you get three choices:
+1. **📐 Auto-Resize Build Plate**: Automatically adjusts to 110% of needed size (squared for symmetry)
+2. **✓ Continue Anyway**: Proceed with oversized billet (for visualization purposes)
+3. **✗ Cancel**: Abort the operation
+
+---
+
+## 🔧 Technical Details
+
+### Architecture
+- **GUI**: Tkinter-based with matplotlib 3D viewport
+- **3D Engine**: Open3D for mesh operations
+- **Physics**: Volume-conserving transformations
+- **Coordinate System**: X=width, Y=length, Z=height (layers stack in Z)
+
+### Forging Physics (VERIFIED WORKING)
+Real forging physics using volume conservation:
+```
+V = width × length × height = constant
+```
+
+For a square bar:
+```
+final_length = original_volume / (target_size²)
+```
+
+Example: 50×100×24mm billet → 20×20mm square = 300mm long bar (3× extension)
+
+### File Structure
+- `damascus_3d_gui.py` - Main GUI application (1,700+ lines)
+- `damascus_3d_simulator.py` - 3D physics engine (1,400+ lines)
+- `3D_DEVELOPMENT_NOTES.md` - Detailed development documentation
+- `SESSION_NOTES_*.md` - Development session logs
+- **Old/Deprecated**: `damascus_simulator.py` - Old 2D version (DO NOT USE)
+
+---
+
+## 🐛 Known Issues & Limitations
+
+### Critical Issues
+⚠️ **NO UNDO FUNCTIONALITY** - Once an operation is applied, you cannot undo it. Use "Reset Billet" to start over.  
+⚠️ **PATTERN OPERATIONS UNTESTED** - Twist, Feather, and Raindrop patterns are implemented but not fully tested.  
+⚠️ **MUST FORGE BEFORE TWIST** - Twist operation requires forging to square or octagon first (validation enforced).  
+
+### Known Limitations
+1. **Z-axis not validated**: Only X/Y dimensions checked against build plate
+2. **Single billet only**: Can't place multiple billets on build plate
+3. **No animation**: Operations apply instantly (no gradual visualization)
+4. **Limited undo**: Only "Reset Billet" available (loses all work)
+
+### Performance Notes
+- Large billets (>100 layers) may render slowly
+- Forging with many heats (>10) takes longer but produces smoother results
+- Cross-section extraction is fast (<0.1s typically)
+- First render may take a few seconds to initialize Open3D
+
+### Stability
+- **Generally stable** for billet creation and forging operations
+- **May crash** during experimental pattern operations
+- **Save your work frequently** using export functions
+- Check debug logs (`damascus_3d_debug_*.log`) if crashes occur
+
+---
+
+## 📖 Documentation
+
+### Included Documentation
+- `3D_DEVELOPMENT_NOTES.md` - Complete technical documentation (1,100+ lines)
+- `SESSION_NOTES_2026-02-02.md` - Forging physics implementation notes
+- `SESSION_NOTES_2026-02-04.md` - Build plate system implementation notes
+- `FEATHER_PATTERN_PHYSICS.md` - Feather pattern deformation physics (IN DEVELOPMENT)
+- `material-deformation-math.md` - Mathematical models for deformation
+
+### Debug Logging
+Debug logs are automatically created in the project directory:
+- Format: `damascus_3d_debug_YYYYMMDD_HHMMSS.log`
+- Includes: Operation details, vertex transformations, validation checks, performance metrics
+- **IMPORTANT**: Check these logs if you encounter issues
+
+---
+
+## 🎯 Development Roadmap
+
+### Phase 1: Core Functionality (CURRENT - 80% COMPLETE)
+- [x] 3D mesh-based billet creation
+- [x] Static build plate system
+- [x] Forge to square bar (TESTED)
+- [x] Forge to octagonal bar (TESTED)
+- [x] 3D visualization
+- [x] Export to .obj format
+- [ ] Test all pattern operations
+- [ ] Implement undo/redo system
+
+### Phase 2: Pattern Refinement (UPCOMING)
+- [ ] Test and debug twist operation
+- [ ] Refine feather/wedge deformation
+- [ ] Test raindrop drilling
+- [ ] Add compression operations
+- [ ] Pattern presets library
+
+### Phase 3: Advanced Features (PLANNED)
+- [ ] Z-axis build plate validation
+- [ ] Preset build plate sizes
+- [ ] Build plate surface visualization
+- [ ] Multiple billets on plate
+- [ ] Animation system
+- [ ] Material presets
+
+### Phase 4: Polish (FUTURE)
+- [ ] Performance optimization
+- [ ] Better error handling
+- [ ] User documentation
+- [ ] Tutorial mode
+- [ ] Pattern gallery
+
+---
+
+## ⚠️ Deprecation Notice
+
+### Old 2D Simulator
+The original 2D pixel-based simulator (`damascus_simulator.py`) is **DEPRECATED** and should **NOT BE USED**.
+
+**Status**: Kept in repository for reference only  
+**Maintenance**: None - no bug fixes or updates  
+**Recommended**: Use 3D version (`damascus_3d_gui.py`) instead  
+
+**Why deprecated?**
+- Limited to 2D cross-sections (no true 3D geometry)
+- Pixel-based rendering (not scalable)
+- No realistic physics modeling
+- Limited pattern types
+
+---
+
+## 🤝 Contributing & Feedback
+
+This is a personal project, but feedback is appreciated!
+
+### Reporting Bugs 🐛
+1. **Check if it's a known issue** (see section above)
+2. Check debug logs: `damascus_3d_debug_*.log`
+3. Note the exact steps to reproduce
+4. Include screenshots if applicable
+5. Report via GitHub issues with tag `[BETA-BUG]`
+
+### Feature Requests 💡
+1. Check the roadmap first
+2. Submit via GitHub issues with tag `[FEATURE-REQUEST]`
+3. Describe the use case and expected behavior
+
+### Beta Testing 🧪
+Beta testers wanted! If you're willing to test experimental features:
+1. Try pattern operations (twist, feather, raindrop)
+2. Report what works and what doesn't
+3. Share any interesting patterns you create
+4. Tag feedback with `[BETA-TESTING]`
+
+---
+
+## 📜 License
+
+[Your license here]
+
+---
+
+## 🙏 Acknowledgments
+
+- **Open3D**: 3D mesh processing library
+- **matplotlib**: 3D visualization
+- **Damascus steel community**: Inspiration and reference patterns
+- **Beta testers**: Thank you for your patience!
+
+---
+
+## 📞 Support & Help
+
+For questions or issues:
+1. **READ THIS README FIRST** - especially the "Known Issues" section
+2. Check documentation in `3D_DEVELOPMENT_NOTES.md`
+3. Review session notes for recent changes
+4. Check debug logs for error details (`damascus_3d_debug_*.log`)
+5. Submit GitHub issue with:
+   - `[BETA]` tag
+   - Clear description
+   - Steps to reproduce
+   - Debug log excerpt (if applicable)
+
+### Expected Response Time
+This is a personal project developed in spare time. Response times may vary:
+- Bug reports: 1-7 days
+- Feature requests: Evaluated for roadmap
+- Beta testing feedback: Appreciated anytime!
+
+---
+
+## 🎓 Learning Resources
+
+New to Damascus steel patterns? Check out:
+- `3D_DEVELOPMENT_NOTES.md` - Technical background
+- `FEATHER_PATTERN_PHYSICS.md` - Pattern formation physics
+- `material-deformation-math.md` - Mathematical models
+
+---
+
+## 🚀 Getting Started (Quick Reference)
+
+**For first-time users:**
+1. Install using `./install-DPS.sh`
+2. Launch: `./damascus_3d_gui.py`
+3. Create a default billet (50×100mm, 30 layers)
+4. Try forging to square bar (15mm, 5 heats)
+5. Export the result (.obj file)
+6. View in your favorite 3D viewer
+
+**That's it!** You've created your first 3D Damascus billet with realistic forging physics!
+
+---
+
+**Enjoy creating Damascus patterns in 3D - and thank you for being a beta tester!** 🗡️✨
+
+**Remember: This is beta software. Save often, expect bugs, and report issues!**
+
+---
+
+*Last Updated: 2026-02-04*  
+*Version: 2.0-beta*  
+*Status: Active Development*
