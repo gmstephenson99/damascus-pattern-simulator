@@ -23,5 +23,20 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# User data (don't commit user's patterns)
+# User data and temporary files
 *.log
+damascus_3d_debug_*.log
+app_output.log
+
+# Temporary screenshot/image files from testing
+canvas_background.png
+damascus-screenshot.png
+feather_pattern.png
+
+# Test output files
+feather_operations.json
+
+# Strange files that shouldn't be here
+np
+os
+sys
