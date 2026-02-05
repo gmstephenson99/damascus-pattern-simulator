@@ -39,6 +39,13 @@
 
 This is a **complete rewrite** of the Damascus Pattern Simulator using real 3D physics and mesh-based simulation. The old 2D pixel-based simulator has been deprecated in favor of this more accurate and powerful 3D engine.
 
+### Recent Updates (2026-02-05)
+- Added live debug console streaming in `damascus_3d_gui.py` via `TkTextLogHandler`
+- Added API call instrumentation logs in `damascus_3d_simulator.py` (callable, source file, definition line)
+- Added Windows install/run support files (`install_windows.bat`, `run_windows.bat`, `INSTALL_WINDOWS.md`)
+- Updated Windows installer to enforce Python 3.12 for Open3D compatibility
+- Consolidated beta documentation into the root `README.md` so release notes stay current
+
 ### Major Features
 
 #### ✨ **3D Mesh-Based Physics Engine**
@@ -236,6 +243,7 @@ Example: 50×100×24mm billet → 20×20mm square = 300mm long bar (3× extensio
 - `SESSION_NOTES_2026-02-04.md` - Build plate system implementation notes
 - `FEATHER_PATTERN_PHYSICS.md` - Feather pattern deformation physics (IN DEVELOPMENT)
 - `material-deformation-math.md` - Mathematical models for deformation
+- `INSTALL_WINDOWS.md` - Windows installation and setup walkthrough
 
 ### Debug Logging
 Debug logs are automatically created in the project directory:
@@ -388,6 +396,6 @@ New to Damascus steel patterns? Check out:
 
 ---
 
-*Last Updated: 2026-02-04*  
+*Last Updated: 2026-02-05*  
 *Version: 2.0-beta*  
 *Status: Active Development*
