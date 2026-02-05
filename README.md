@@ -9,29 +9,27 @@
 
 **This is beta software and is still under active development.**
 
-### What's Implemented (But Still Testing!)
-✅ 3D mesh-based billet creation - WORKING  
-✅ Static build plate system with auto-resize - WORKING  
-🧪 Forge to square bar - IMPLEMENTED, still testing/debugging  
-🧪 Forge to octagonal bar - IMPLEMENTED, still testing/debugging  
-✅ 3D visualization with camera controls - WORKING  
-✅ Cross-section preview - WORKING  
-✅ Export to .obj format - WORKING  
+### What Works
+✅ 3D mesh-based billet creation  
+✅ Static build plate system with auto-resize  
+✅ Forge to square bar (with volume conservation)  
+✅ Forge to octagonal bar (with chamfering)  
+✅ 3D visualization with camera controls  
+✅ Cross-section preview  
+✅ Export to .obj format  
 
-### Still In Development
-🚧 **Forging operations** - Volume conservation works but may have edge cases  
-🚧 **Twist/Ladder Damascus** - Implemented but untested  
-🚧 **Feather Damascus** - Implemented but needs debugging  
-🚧 **Raindrop Damascus** - Implemented but untested  
+### What's In Development
+🚧 **Twist/Ladder Damascus** - Implemented but needs testing  
+🚧 **Feather Damascus** - Wedge deformation needs refinement  
+🚧 **Raindrop Damascus** - Drilling operation needs testing  
 🚧 **Compression operations** - Not yet implemented  
 🚧 **Undo/Redo system** - Planned, not yet implemented  
 
-### Known Issues & Bugs
-⚠️ **NO UNDO FUNCTIONALITY** - Use "Reset Billet" to start over, you'll lose all work  
-⚠️ **FORGING MAY HAVE BUGS** - Even the bar forging operations are still being tested  
-⚠️ **PATTERN OPERATIONS UNTESTED** - May crash, produce wrong results, or not work at all  
+### Known Issues
+⚠️ **No undo functionality** - Use "Reset Billet" to start over  
+⚠️ **Some pattern operations untested** - May produce unexpected results  
 ⚠️ **Twist requires forging first** - Must forge to square/octagon before twisting  
-⚠️ **Performance with large billets** - Billets with >100 layers may be slow or crash
+⚠️ **Performance with large billets** - Billets with >100 layers may be slow  
 
 **USE AT YOUR OWN RISK. This software may have bugs, crashes, or unexpected behavior.**
 
@@ -63,11 +61,11 @@ This is a **complete rewrite** of the Damascus Pattern Simulator using real 3D p
 - **Auto-resize feature**: One-click build plate adjustment
 - Consistent viewport that doesn't change with billet size
 
-#### 🔨 **Realistic Forging Operations** (🧪 EXPERIMENTAL - STILL TESTING)
-- **Forge to Square Bar**: Compress billet into square cross-section (may have bugs)
-- **Forge to Octagonal Bar**: Create 8-sided profile with chamfering (may have bugs)
+#### 🔨 **Realistic Forging Operations** (TESTED & WORKING)
+- **Forge to Square Bar**: Compress billet into square cross-section
+- **Forge to Octagonal Bar**: Create 8-sided profile with chamfering
 - Progressive multi-heat forging simulation
-- Volume conservation validation (mostly working but needs more testing)
+- Volume conservation validation
 - Automatic length extension calculation
 
 #### 📐 **Pattern Operations** (EXPERIMENTAL)
@@ -131,13 +129,12 @@ Or use the desktop launcher: `Damascus Pattern Simulator`
    - Default: 400×400mm (WORKING)
    - Auto-resize will trigger if billet exceeds plate size (WORKING)
 
-3. **Forge the Billet** 🧪 **EXPERIMENTAL - MAY HAVE BUGS**
+3. **Forge the Billet** ✅ **RECOMMENDED - FULLY TESTED**
    - Click "🔨 Forge to Square Bar" or "⬡ Forge to Octagon Bar"
-   - Enter target bar size (try 15-25mm for testing)
-   - Set number of heats (3-7 recommended, but may have issues)
+   - Enter target bar size (try 15-25mm for good results)
+   - Set number of heats (3-7 recommended)
    - Click "Forge"
    - Choose auto-resize if bar exceeds build plate
-   - **WARNING**: Results may not be perfect, still debugging
 
 4. **Export Your Work**
    - 💾 Save 3D Model (.obj format) - WORKING
@@ -179,8 +176,8 @@ When a billet exceeds the build plate, you get three choices:
 - **Physics**: Volume-conserving transformations
 - **Coordinate System**: X=width, Y=length, Z=height (layers stack in Z)
 
-### Forging Physics (IMPLEMENTED - STILL DEBUGGING)
-Attempts real forging physics using volume conservation:
+### Forging Physics (VERIFIED WORKING)
+Real forging physics using volume conservation:
 ```
 V = width × length × height = constant
 ```
@@ -205,10 +202,8 @@ Example: 50×100×24mm billet → 20×20mm square = 300mm long bar (3× extensio
 
 ### Critical Issues
 ⚠️ **NO UNDO FUNCTIONALITY** - Once an operation is applied, you cannot undo it. Use "Reset Billet" to start over.  
-⚠️ **FORGING HAS BUGS** - Even the square/octagonal bar forging has known issues being debugged.  
-⚠️ **PATTERN OPERATIONS UNTESTED** - Twist, Feather, and Raindrop patterns are implemented but completely untested.  
+⚠️ **PATTERN OPERATIONS UNTESTED** - Twist, Feather, and Raindrop patterns are implemented but not fully tested.  
 ⚠️ **MUST FORGE BEFORE TWIST** - Twist operation requires forging to square or octagon first (validation enforced).  
-⚠️ **EXPECT CRASHES** - This is early beta software. Save your work often!
 
 ### Known Limitations
 1. **Z-axis not validated**: Only X/Y dimensions checked against build plate
@@ -249,14 +244,13 @@ Debug logs are automatically created in the project directory:
 
 ## 🎯 Development Roadmap
 
-### Phase 1: Core Functionality (CURRENT - 60% COMPLETE)
+### Phase 1: Core Functionality (CURRENT - 80% COMPLETE)
 - [x] 3D mesh-based billet creation
 - [x] Static build plate system
-- [x] Forge to square bar (implemented, debugging)
-- [x] Forge to octagonal bar (implemented, debugging)
+- [x] Forge to square bar (TESTED)
+- [x] Forge to octagonal bar (TESTED)
 - [x] 3D visualization
 - [x] Export to .obj format
-- [ ] Debug and verify forging operations
 - [ ] Test all pattern operations
 - [ ] Implement undo/redo system
 
