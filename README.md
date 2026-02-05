@@ -176,6 +176,9 @@ When a billet exceeds the build plate, you get three choices:
 - **Physics**: Volume-conserving transformations
 - **Coordinate System**: X=width, Y=length, Z=height (layers stack in Z)
 
+<img width="1205" height="678" alt="image" src="https://github.com/user-attachments/assets/ed4abee8-e27e-43d5-9894-22a34e7ee9e1" />
+
+
 ### Forging Physics (VERIFIED WORKING)
 Real forging physics using volume conservation:
 ```
