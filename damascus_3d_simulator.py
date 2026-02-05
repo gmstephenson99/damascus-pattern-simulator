@@ -41,7 +41,10 @@ from typing import List, Tuple, Optional, Dict, Any
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import functools
+import inspect
 import logging
+import os
 import sys
 from datetime import datetime
 import json
@@ -113,6 +116,42 @@ def setup_logging(debug_level: str = "DEBUG") -> logging.Logger:
 
 # Initialize global logger
 logger = setup_logging("DEBUG")
+
+
+# ============================================================================
+# API CALL INSTRUMENTATION
+# ============================================================================
+
+def _resolve_source_location(func) -> Tuple[str, int]:
+    """Return source filename and definition start line for a callable."""
+    source_path = inspect.getsourcefile(func)
+    source_file = os.path.basename(source_path) if source_path else "<unknown>"
+    try:
+        source_line = inspect.getsourcelines(func)[1]
+    except (OSError, TypeError):
+        source_line = -1
+    return source_file, source_line
+
+
+def _api_call_wrapper(func):
+    """Wrap callable to emit a structured API call log on each invocation."""
+    if getattr(func, "_damascus_api_wrapped", False):
+        return func
+
+    source_file, source_line = _resolve_source_location(func)
+
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        logger.info(
+            "API_CALL | %s | file=%s | starts_at_line=%d",
+            func.__qualname__,
+            source_file,
+            source_line,
+        )
+        return func(*args, **kwargs)
+
+    wrapped._damascus_api_wrapped = True
+    return wrapped
 
 
 # ============================================================================
@@ -1196,6 +1235,25 @@ class Damascus3DBillet:
         
         logger.info(f"Operation log saved: {len(self.operation_history)} operations recorded")
         print(f"Operation log saved to: {output_path}")
+
+
+def _install_api_call_logging():
+    """
+    Instrument public simulator methods with API_CALL logs.
+
+    Public methods from both `DamascusLayer` and `Damascus3DBillet` are wrapped
+    so each invocation records the callable, source file, and definition line.
+    """
+    for cls in (DamascusLayer, Damascus3DBillet):
+        for attr_name, attr_value in list(vars(cls).items()):
+            if attr_name.startswith('_'):
+                continue
+            if not inspect.isfunction(attr_value):
+                continue
+            setattr(cls, attr_name, _api_call_wrapper(attr_value))
+
+
+_install_api_call_logging()
 
 
 # ============================================================================
