@@ -49,7 +49,9 @@ damascus-pattern-simulator/
 |   |-- FEATHER_PATTERN_PHYSICS.md       # Feather pattern deformation physics
 |   |-- material-deformation-math.md     # Deformation math reference
 |-- data/
+|   |-- __init__.py                     # Marks data as importable package
 |   |-- steel_database.py                # Steel data lookup module
+|   |-- custom_steels.json              # User-added steels (generated at runtime)
 |   |-- steel-plasticity.txt             # Steel plasticity source data
 |   |-- steel-losses-during-forging.txt  # Steel forging loss source data
 |   |-- Hardening-tempering.txt          # Heat-treatment source data
@@ -69,6 +71,27 @@ damascus-pattern-simulator/
 |   |-- twist_pattern.png
 |   |-- raindrop_pattern.png
 ```
+
+### Filesystem Path Refactor (2026-02-05)
+
+To support the reorganized folder layout reliably, file access was refactored to
+be path-stable (not dependent on the current working directory).
+
+**Key changes:**
+- `damascus_3d_gui.py` imports steel data via `from data.steel_database import ...`
+- GUI reference viewers now read:
+  - `data/steel-losses-during-forging.txt`
+  - `data/steel-plasticity.txt`
+- `data/steel_database.py` now defaults custom steel storage to:
+  - `data/custom_steels.json`
+- `testing/test_custom_steel.py` updated for package import path and new custom steel path
+- `run_windows.bat` now changes to project root using `%~dp0` before launching
+- `Installation_and_Launch/install_windows.bat` now:
+  - resolves project root from script location
+  - installs dependencies from `Installation_and_Launch/requirements.txt`
+- `Installation_and_Launch/damascus_simulator.spec` now packages assets from:
+  - `data/`
+  - `Staging/`
 
 ### Class Hierarchy
 
@@ -1092,21 +1115,30 @@ When investigating issues:
 
 ## CHANGELOG
 
-### Version 2.1 (2026-02-05) - DEBUGGING + WINDOWS TOOLING HARDENING
+### Version 2.0.3-beta (2026-02-05) - FILESYSTEM PATH REFACTOR
+- Refactored imports to use `data.steel_database` package path
+- Added `data/__init__.py` for package-aware imports
+- Updated GUI reference file loaders to use `data/` paths instead of root-relative filenames
+- Updated custom steel persistence to `data/custom_steels.json`
+- Updated test script path handling for new package/file layout
+- Hardened Windows launcher/installer scripts for script-relative path resolution
+- Updated PyInstaller spec to include resources from `data/` and `Staging/`
+
+### Version 2.0.2-beta (2026-02-05) - DEBUGGING + WINDOWS TOOLING HARDENING
 - Added live Tkinter debug console streaming via `TkTextLogHandler` in `damascus_3d_gui.py`
 - Added API call instrumentation wrappers in `damascus_3d_simulator.py` using `inspect` and `functools`
 - Added structured `API_CALL` log records with callable name, source file, and definition line
 - Added Windows installation tooling/docs (`Installation_and_Launch/install_windows.bat`, `run_windows.bat`, `Installation_and_Launch/INSTALL_WINDOWS.md`)
 - Updated Windows installer logic to require Python 3.12 for Open3D compatibility
 
-### Version 2.0-beta (2026-02-04) - BUILD PLATE SYSTEM + GUI BETA RELEASE
+### Version 2.0.1-beta (2026-02-04) - BUILD PLATE SYSTEM + GUI BETA RELEASE
 - Added static build plate dimensions and visual workspace boundary in the 3D viewport
 - Added oversized billet/forging validation with auto-resize choices (resize/continue/cancel)
 - Added stable build-plate-based viewport scaling for a consistent workspace reference frame
 - Added GUI forging workflows for square and octagonal bars with volume-conservation-driven sizing
 - Added beta release documentation and session notes for the build plate rollout
 
-### Version 2.0 (2026-02-02) - 3D MESH-BASED REWRITE
+### Version 2.0.0-beta (2026-02-02) - 3D MESH-BASED REWRITE
 - **BREAKING CHANGE**: Complete rewrite from 2D to 3D
 - Added DamascusLayer class with 3D mesh representation
 - Added Damascus3DBillet class with operation methods
@@ -1124,7 +1156,7 @@ When investigating issues:
 - Created three complete demos (feather, twist, raindrop)
 - Created extensive documentation
 
-### Version 1.0 (2026-01-31) - DEPRECATED 2D APPROACH
+### Version 1.0.0 (2026-01-31) - DEPRECATED 2D APPROACH
 - Original 2D simulator with pixel-based displacement
 - Worked for simple patterns but FAILED for feather Damascus
 - Identified as fundamentally flawed approach

@@ -15,6 +15,14 @@ echo  Damascus Pattern Simulator 3D - Windows Installer
 echo ============================================================
 echo.
 
+REM Resolve absolute paths
+set "SCRIPT_DIR=%~dp0"
+for %%I in ("%SCRIPT_DIR%..") do set "PROJECT_ROOT=%%~fI"
+set "REQUIREMENTS_FILE=%SCRIPT_DIR%requirements.txt"
+
+REM Always run installation from the project root
+cd /d "%PROJECT_ROOT%"
+
 set "PYTHON_CMD="
 
 REM Prefer exact Python 3.12 via Python Launcher to avoid 3.13 for Open3D
@@ -115,16 +123,16 @@ echo.
 echo This may take several minutes...
 echo.
 
-REM Install from requirements.txt if it exists
-if exist requirements.txt (
-    echo Installing from requirements.txt...
-    pip install -r requirements.txt
+REM Install from Installation_and_Launch\requirements.txt if it exists
+if exist "%REQUIREMENTS_FILE%" (
+    echo Installing from %REQUIREMENTS_FILE%...
+    pip install -r "%REQUIREMENTS_FILE%"
     if errorlevel 1 (
-        set "ERROR_MSG=Failed to install requirements.txt dependencies."
+        set "ERROR_MSG=Failed to install dependencies from %REQUIREMENTS_FILE%."
         goto :fail
     )
 ) else (
-    echo [WARN] requirements.txt not found. Installing core dependencies directly...
+    echo [WARN] %REQUIREMENTS_FILE% not found. Installing core dependencies directly...
     pip install numpy scipy matplotlib Pillow open3d
     if errorlevel 1 (
         set "ERROR_MSG=Failed to install core dependencies."

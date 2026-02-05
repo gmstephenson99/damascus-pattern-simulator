@@ -64,13 +64,19 @@ import logging
 from datetime import datetime
 import json
 import glob
+from pathlib import Path
 
 # Import our 3D Damascus engine
 from damascus_3d_simulator import Damascus3DBillet, DamascusLayer, logger
 import open3d as o3d
 
 # Import steel database
-from steel_database import get_database
+from data.steel_database import get_database
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DATA_DIR = PROJECT_ROOT / "data"
+FORGING_LOSSES_PATH = DATA_DIR / "steel-losses-during-forging.txt"
+PLASTICITY_GUIDE_PATH = DATA_DIR / "steel-plasticity.txt"
 
 
 class TkTextLogHandler(logging.Handler):
@@ -2556,7 +2562,7 @@ TIPS:
             
             # Create Steel object
             try:
-                from steel_database import Steel
+                from data.steel_database import Steel
                 
                 # Build steel data dictionary
                 steel_data = {
@@ -2643,16 +2649,16 @@ TIPS:
     
     def show_forging_losses(self):
         """
-        Show forging losses reference from steel-losses-during-forging.txt.
+        Show forging losses reference from data/steel-losses-during-forging.txt.
         """
         logger.info("Opening Forging Losses Reference")
         
         try:
-            with open('steel-losses-during-forging.txt', 'r') as f:
+            with open(FORGING_LOSSES_PATH, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
         except FileNotFoundError:
             messagebox.showerror("File Not Found", 
-                "steel-losses-during-forging.txt not found")
+                f"Reference file not found:\n{FORGING_LOSSES_PATH}")
             return
         
         # Create window
@@ -2676,16 +2682,16 @@ TIPS:
     
     def show_plasticity_guide(self):
         """
-        Show steel plasticity guide from steel-plasticity.txt.
+        Show steel plasticity guide from data/steel-plasticity.txt.
         """
         logger.info("Opening Steel Plasticity Guide")
         
         try:
-            with open('steel-plasticity.txt', 'r') as f:
+            with open(PLASTICITY_GUIDE_PATH, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
         except FileNotFoundError:
             messagebox.showerror("File Not Found", 
-                "steel-plasticity.txt not found")
+                f"Reference file not found:\n{PLASTICITY_GUIDE_PATH}")
             return
         
         # Create window

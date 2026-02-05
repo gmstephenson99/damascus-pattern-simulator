@@ -1,5 +1,5 @@
 # Damascus Pattern Simulator - Beta Release (3D Version)
-**Version**: 2.0-beta  
+**Version**: 2.0.3-beta  
 **Release Date**: 2026-02-04  
 **Status**: 🚧 **BETA - UNDER ACTIVE DEVELOPMENT** 🚧
 
@@ -45,6 +45,12 @@ This is a **complete rewrite** of the Damascus Pattern Simulator using real 3D p
 - Added project folder organization for clarity: `Notes/`, `Research/`, `data/`, `Staging/`, `testing/`, `Installation_and_Launch/`
 - Added Windows install/run support files (`Installation_and_Launch/install_windows.bat`, `run_windows.bat`, `Installation_and_Launch/INSTALL_WINDOWS.md`, `Installation_and_Launch/requirements.txt`)
 - Updated Windows installer to enforce Python 3.12 for Open3D compatibility
+- Refactored runtime file access for the new folder layout:
+  - `damascus_3d_gui.py` now imports steel data from `data/steel_database.py`
+  - Reference guides are loaded from `data/steel-losses-during-forging.txt` and `data/steel-plasticity.txt`
+  - Custom steel records now persist to `data/custom_steels.json`
+  - Windows launcher/installer scripts now resolve paths from their script locations
+  - `Installation_and_Launch/damascus_simulator.spec` now packages resources from `data/` and `Staging/`
 - Consolidated beta documentation into the root `README.md` so release notes stay current
 
 ### Major Features
@@ -87,28 +93,25 @@ This is a **complete rewrite** of the Damascus Pattern Simulator using real 3D p
 ## 🚀 Installation
 
 ### Requirements
-- Python 3.8+
-- Virtual environment (included)
-- Linux/Ubuntu (tested on Ubuntu)
+- **Windows**: Python **3.12.x** (required for Open3D in this project)
+- **Linux/macOS**: Python 3.8+ (manual install path)
+- Virtual environment (recommended)
 
-### Quick Install
-```bash
-cd ~/Projects/damascus-pattern-simulator
-chmod +x install-DPS.sh
-./install-DPS.sh
+### Windows Install (Recommended)
+1. Double-click `Installation_and_Launch/install_windows.bat`
+2. After install completes, double-click `run_windows.bat`
+
+Manual command-line flow:
+```bat
+Installation_and_Launch\install_windows.bat
+run_windows.bat
 ```
 
-This will:
-- Create a Python virtual environment
-- Install all dependencies (Open3D, matplotlib, PIL, numpy)
-- Create desktop launcher
-- Set up the application
-
-### Manual Install
+### Linux/macOS Manual Install
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install open3d matplotlib pillow numpy
+pip install -r Installation_and_Launch/requirements.txt
 ```
 
 ---
@@ -354,7 +357,7 @@ Beta testers wanted! If you're willing to test experimental features:
 
 For questions or issues:
 1. **READ THIS README FIRST** - especially the "Known Issues" section
-2. Check documentation in `Notes/3D_DEVELOPMENT_NOTES.md`
+2. Check documentation in `3D_DEVELOPMENT_NOTES.md`
 3. Review session notes in `Notes/` for recent changes
 4. Check debug logs for error details (`damascus_3d_debug_*.log`)
 5. Submit GitHub issue with:
@@ -374,7 +377,7 @@ This is a personal project developed in spare time. Response times may vary:
 ## 🎓 Learning Resources
 
 New to Damascus steel patterns? Check out:
-- `Notes/3D_DEVELOPMENT_NOTES.md` - Technical background
+- `3D_DEVELOPMENT_NOTES.md` - Technical background
 - `Research/FEATHER_PATTERN_PHYSICS.md` - Pattern formation physics
 - `Research/material-deformation-math.md` - Mathematical models
 
@@ -383,8 +386,8 @@ New to Damascus steel patterns? Check out:
 ## 🚀 Getting Started (Quick Reference)
 
 **For first-time users:**
-1. Install using `./install-DPS.sh`
-2. Launch: `./damascus_3d_gui.py`
+1. Install dependencies with `Installation_and_Launch/install_windows.bat` (Windows) or manual venv + `Installation_and_Launch/requirements.txt` (Linux/macOS)
+2. Launch with `run_windows.bat` (Windows) or `python damascus_3d_gui.py`
 3. Create a default billet (50×100mm, 30 layers)
 4. Try forging to square bar (15mm, 5 heats)
 5. Export the result (.obj file)
@@ -401,5 +404,5 @@ New to Damascus steel patterns? Check out:
 ---
 
 *Last Updated: 2026-02-05*  
-*Version: 2.0-beta*  
+*Version: 2.1.0-beta*  
 *Status: Active Development*
